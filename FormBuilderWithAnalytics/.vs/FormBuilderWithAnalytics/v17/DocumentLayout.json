@@ -1,0 +1,84 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\\u0410\u043B\u0435\u043A\u0441\u0430\u0434\u0440\\Desktop\\\u041A\u041E\u0414 _\u041F\u0420\u041E\u0415\u041A\u0422\\FormBuilderWithAnalytics\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{D8C71C6A-587F-48E6-A3CF-49298A1A3C15}|FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj|c:\\users\\\u0430\u043B\u0435\u043A\u0441\u0430\u0434\u0440\\desktop\\\u043A\u043E\u0434 _\u043F\u0440\u043E\u0435\u043A\u0442\\formbuilderwithanalytics\\formbuilderwithanalytics\\formbuilderwithanalytics.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{D8C71C6A-587F-48E6-A3CF-49298A1A3C15}|FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj|solutionrelative:formbuilderwithanalytics\\formbuilderwithanalytics.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D8C71C6A-587F-48E6-A3CF-49298A1A3C15}|FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj|c:\\users\\\u0430\u043B\u0435\u043A\u0441\u0430\u0434\u0440\\desktop\\\u043A\u043E\u0434 _\u043F\u0440\u043E\u0435\u043A\u0442\\formbuilderwithanalytics\\formbuilderwithanalytics\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{D8C71C6A-587F-48E6-A3CF-49298A1A3C15}|FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj|solutionrelative:formbuilderwithanalytics\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "FormBuilderWithAnalytics",
+              "DocumentMoniker": "C:\\Users\\\u0410\u043B\u0435\u043A\u0441\u0430\u0434\u0440\\Desktop\\\u041A\u041E\u0414 _\u041F\u0420\u041E\u0415\u041A\u0422\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj",
+              "RelativeDocumentMoniker": "FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj",
+              "ToolTip": "C:\\Users\\\u0410\u043B\u0435\u043A\u0441\u0430\u0434\u0440\\Desktop\\\u041A\u041E\u0414 _\u041F\u0420\u041E\u0415\u041A\u0422\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj",
+              "RelativeToolTip": "FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-09-22T14:41:41.451Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{40ea2e6b-2121-4bb8-a43e-c83c04b51041}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{3ae79031-e1bc-11d0-8f78-00a0c9110057}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\\u0410\u043B\u0435\u043A\u0441\u0430\u0434\u0440\\Desktop\\\u041A\u041E\u0414 _\u041F\u0420\u041E\u0415\u041A\u0422\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics\\Program.cs",
+              "RelativeDocumentMoniker": "FormBuilderWithAnalytics\\Program.cs",
+              "ToolTip": "C:\\Users\\\u0410\u043B\u0435\u043A\u0441\u0430\u0434\u0440\\Desktop\\\u041A\u041E\u0414 _\u041F\u0420\u041E\u0415\u041A\u0422\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics\\Program.cs",
+              "RelativeToolTip": "FormBuilderWithAnalytics\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-22T14:40:13.086Z",
+              "EditorCaption": ""
+            }
+          ]
+        },
+        {
+          "DockedWidth": 1661,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:1:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
