@@ -1,0 +1,11 @@
+# Visual Studio / C#
+[Oo]bj/
+[Bb]in/
+.vs/
+*.user
+*.suo
+
+# Node / Frontend
+node_modules/
+dist/
+build/
