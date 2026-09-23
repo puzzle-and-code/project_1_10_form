@@ -541,11 +541,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Алексадр\\Desktop\\КОД _ПРОЕКТ\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj",
+      "projectUniqueName": "C:\\Users\\Алексадр\\Desktop\\FormBuilderWithAnalytics_Repository\\project_1_10_form\\FormBuilderWithAnalytics\\backend\\FormBuilderWithAnalytics.csproj",
       "projectName": "FormBuilderWithAnalytics",
-      "projectPath": "C:\\Users\\Алексадр\\Desktop\\КОД _ПРОЕКТ\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics.csproj",
+      "projectPath": "C:\\Users\\Алексадр\\Desktop\\FormBuilderWithAnalytics_Repository\\project_1_10_form\\FormBuilderWithAnalytics\\backend\\FormBuilderWithAnalytics.csproj",
       "packagesPath": "C:\\Users\\Алексадр\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Алексадр\\Desktop\\КОД _ПРОЕКТ\\FormBuilderWithAnalytics\\FormBuilderWithAnalytics\\obj\\",
+      "outputPath": "C:\\Users\\Алексадр\\Desktop\\FormBuilderWithAnalytics_Repository\\project_1_10_form\\FormBuilderWithAnalytics\\backend\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

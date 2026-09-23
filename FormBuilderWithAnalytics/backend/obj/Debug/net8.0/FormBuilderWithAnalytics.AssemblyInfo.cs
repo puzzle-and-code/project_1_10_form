@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FormBuilderWithAnalytics")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+601021a7bff50aaed528b0e7998ee4a59991d9fc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+32f2b332df8ae039658a416460a6119961b8aed2")]
 [assembly: System.Reflection.AssemblyProductAttribute("FormBuilderWithAnalytics")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FormBuilderWithAnalytics")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
