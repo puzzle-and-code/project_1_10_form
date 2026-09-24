@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AuthService.Domain</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Domain — самый внутренний слой чистой архитектуры.
+    Здесь только сущности и бизнес-правила. НИКАКИХ ссылок на
+    EF Core, ASP.NET, инфраструктуру и т.д. — Domain ни от кого
+    не зависит, все остальные зависят от него.
+  -->
+
+</Project>
