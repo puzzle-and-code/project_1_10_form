@@ -4,6 +4,7 @@
 .vs/
 *.user
 *.suo
+project_1_10_form/backend/.vs
 
 # Node / Frontend
 node_modules/
