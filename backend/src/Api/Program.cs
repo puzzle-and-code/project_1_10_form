@@ -14,10 +14,29 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Подключаем слои Application и Infrastructure (где зарегистрированы DbContext и сервисы)
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+// Проверка подключения к БД при старте с логированием через ILogger
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var dbContext = services.GetRequiredService<AppDbContext>();
+        await dbContext.Database.CanConnectAsync();
+        logger.LogInformation("Бэкенд успешно подключился к базе данных PostgreSQL!");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Ошибка подключения к базе данных при старте приложения.");
+    }
+}
 
 // Автоприменение миграций при старте — только в Development.
 // В Production миграции накатываются осознанно, отдельной командой/шагом
