@@ -148,3 +148,12 @@ dotnet ef migrations remove --project src/Infrastructure --startup-project src/A
 Ничего чувствительного не коммитим: пароли/строки подключения — только
 через `dotnet user-secrets` (dev) и переменные окружения (prod). См.
 `.gitignore`.
+
+## Backend - настройка подключения к БД через docker
+
+Docker локально поднимается командой docker compose up -d, backend успешно подключается к БД
+
+как проверить:
+
+1. сначала выполните команду docker compose up -d
+2. dotnet run, успешное подключение к БД должно будет залогироваться
