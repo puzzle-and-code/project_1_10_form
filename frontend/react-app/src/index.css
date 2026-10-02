@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@plugin "@heroui/react";
+@import "@heroui/react/styles";
 
 * {
   box-sizing: border-box;
