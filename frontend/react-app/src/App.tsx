@@ -16,8 +16,9 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/editform" element={<EditformsPage />} />
           <Route path="/sign" element={<SignPage />} />
-          <Route path="/authorization" element={<AuthorizationPage />} />
+          <Route path="/login" element={<AuthorizationPage />} />
           <Route path="*" element={<h1>Страница не найдена</h1>} />
+          
         </Routes>
       </main>
     </>
