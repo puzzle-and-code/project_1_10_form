@@ -12,7 +12,7 @@ export default function Header() {
           <Link to="/">Главная</Link>
           <Link to="/editform">Создать форму</Link>
           <Link to="/sign">Регистрация</Link>
-          <Link to="/authorization">Вход</Link>
+          <Link to="/login">Вход</Link>
         </nav>
       </div>
     </header>
