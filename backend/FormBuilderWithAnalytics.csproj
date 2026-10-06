@@ -19,4 +19,19 @@
     <Folder Include="Controllers\" />
   </ItemGroup>
 
+  <!--
+    Папка src/ рядом — это отдельный, старый скелет (4 своих .csproj:
+    Api/Application/Domain/Infrastructure), а не часть этого проекта.
+    Без этих исключений SDK-стиль проекта по умолчанию подхватывает
+    ВСЕ .cs-файлы из подпапок, включая чужой Program.cs (конфликт
+    top-level statements, CS8802) и сгенерированные AssemblyInfo.cs
+    из obj/ других проектов (повторяющиеся атрибуты, CS0579).
+  -->
+  <ItemGroup>
+    <Compile Remove="src/**/*.cs" />
+    <Content Remove="src/**/*" />
+    <None Remove="src/**/*" />
+    <EmbeddedResource Remove="src/**/*" />
+  </ItemGroup>
+
 </Project>
