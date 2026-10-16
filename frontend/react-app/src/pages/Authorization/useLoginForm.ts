@@ -68,6 +68,8 @@ export function useLoginForm() {
       } else {
         setServerError(result.error ?? 'Произошла ошибка');
       }
+    } catch {
+      setServerError('Не удалось выполнить вход. Попробуй ещё раз.');
     } finally {
       setIsLoading(false);
     }
