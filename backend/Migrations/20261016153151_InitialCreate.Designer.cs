@@ -9,10 +9,10 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace AuthService.Infrastructure.Migrations
+namespace FormBuilderWithAnalytics.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260924042703_InitialCreate")]
+    [Migration("20261016153151_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -20,7 +20,7 @@ namespace AuthService.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.10")
+                .HasAnnotation("ProductVersion", "8.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -37,6 +37,38 @@ namespace AuthService.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("health_check_pings", (string)null);
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.User", b =>
+                {
+                    b.Property<Guid>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("created_at")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("display_name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("password_hash")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("id");
+
+                    b.HasIndex("email")
+                        .IsUnique();
+
+                    b.ToTable("users", (string)null);
                 });
 #pragma warning restore 612, 618
         }
