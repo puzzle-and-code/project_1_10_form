@@ -21,15 +21,15 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     {
         var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
 
+        // Ищем конфигурацию в текущей директории или в корне проекта
         var configuration = new ConfigurationBuilder()
-            .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "..", "Api"))
+            .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: true)
             .AddJsonFile($"appsettings.{environment}.json", optional: true)
             .AddEnvironmentVariables()
             .Build();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? Environment.GetEnvironmentVariable("CONNECTIONSTRINGS__DEFAULTCONNECTION")
             ?? "Host=localhost;Port=5432;Database=auth_service_dev;Username=postgres;Password=postgres";
 
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
