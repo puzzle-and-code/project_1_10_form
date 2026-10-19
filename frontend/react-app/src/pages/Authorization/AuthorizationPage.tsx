@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router';
 import {
   TextField,
   Label,
@@ -15,6 +16,7 @@ import { PasswordInput } from '../../components/PasswordInput';
 import { useLoginForm } from './useLoginForm';
 
 export default function AuthorizationPage() {
+  const navigate = useNavigate();
   const {
     email,
     password,
@@ -32,16 +34,22 @@ export default function AuthorizationPage() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-default-50">
+      <div className="min-h-screen flex items-center justify-center bg-default-50 px-4">
         <CardRoot className="w-full max-w-sm shadow-md">
           <CardContent className="py-10 flex flex-col items-center gap-3 text-center">
             <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success text-xl">
               ✓
             </div>
-            <CardTitle className="text-lg">Вы вошли</CardTitle>
+            <CardTitle className="text-lg">Успешный вход</CardTitle>
             <CardDescription>
-              Интеграция с роутингом появится при подключении API
+              Вы успешно авторизованы в системе
             </CardDescription>
+            <Button
+              className="mt-2 w-full button button--primary"
+              onPress={() => navigate('/')}
+            >
+              Перейти на главную
+            </Button>
           </CardContent>
         </CardRoot>
       </div>
