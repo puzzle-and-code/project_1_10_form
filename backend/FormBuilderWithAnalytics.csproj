@@ -6,6 +6,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>d77c8e55-4d8b-4c48-bc35-db25fb680a71</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+
+    <!-- Чтобы /// summary-комментарии из кода реально попадали в Swagger
+         (IncludeXmlComments в Program.cs ищет именно такой файл). -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Не требуем комментарий у каждого public-члена — документируем
+         по мере необходимости, а не всё подряд. -->
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
