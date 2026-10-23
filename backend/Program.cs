@@ -16,6 +16,7 @@ builder.Services.AddScoped<IAuthService, FormBuilderWithAnalytics.src.Infrastruc
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<ICreationFormsService, CreationFormsService>();
 
 // --- Swagger/OpenAPI ---
 builder.Services.AddEndpointsApiExplorer();

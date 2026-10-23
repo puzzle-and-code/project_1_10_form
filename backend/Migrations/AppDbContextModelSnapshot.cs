@@ -36,6 +36,49 @@ namespace FormBuilderWithAnalytics.Migrations
                     b.ToTable("health_check_pings", (string)null);
                 });
 
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Closed_at")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Created_at")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Deleted_at")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Owner_id")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("Published_at")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Updated_at")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Forms");
+                });
+
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.User", b =>
                 {
                     b.Property<Guid>("id")
