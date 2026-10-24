@@ -36,6 +36,37 @@ namespace FormBuilderWithAnalytics.Migrations
                     b.ToTable("health_check_pings", (string)null);
                 });
 
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
+                {
+                    b.Property<Guid>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("created_at")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("owner_id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("updated_at")
+                        .HasColumnType("timestamptz");
+
+                    b.HasKey("id");
+
+                    b.HasIndex("owner_id");
+
+                    b.ToTable("forms", (string)null);
+                });
+
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.User", b =>
                 {
                     b.Property<Guid>("id")
@@ -66,6 +97,15 @@ namespace FormBuilderWithAnalytics.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
+                {
+                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("owner_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

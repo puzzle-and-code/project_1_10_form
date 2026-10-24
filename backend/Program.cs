@@ -1,9 +1,12 @@
+using System.Text;
 using AuthService.Application.Common;
 using AuthService.Infrastructure;
 using AuthService.Infrastructure.Persistence;
 using FormBuilderWithAnalytics.src.Application.Interfaces;
 using FormBuilderWithAnalytics.src.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +20,39 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// JWT-аутентификация — проверяет access-токен, который выдаёт
+// AuthController при /api/auth/login (см. JwtTokenService.GenerateAccessToken).
+// Нужна для задачи с формами: [Authorize] на FormsController иначе
+// падает при первом запросе с ошибкой "No authenticationScheme was specified" —
+// до этой задачи в проекте не было ни одного защищённого эндпоинта.
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        // Не переименовываем стандартные claim'ы (например "sub" в
+        // ClaimTypes.NameIdentifier) — в контроллерах читаем claim'ы
+        // под теми же именами, под которыми их создаёт JwtTokenService.
+        options.MapInboundClaims = false;
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 // --- Swagger/OpenAPI ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -25,8 +61,8 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "FormBuilderWithAnalytics API",
         Version = "v1",
-        Description = "API сервиса форм/опросов: health-эндпоинты и авторизация " +
-                      "(register, login, logout, refresh)."
+        Description = "API сервиса форм/опросов: health-эндпоинты, авторизация " +
+                      "(register, login, logout, refresh) и формы (получение/обновление своих анкет)."
     });
 
     // Подхватываем XML-комментарии (///summary) из кода, чтобы в Swagger
@@ -37,6 +73,34 @@ builder.Services.AddSwaggerGen(options =>
     {
         options.IncludeXmlComments(xmlPath);
     }
+
+    // Кнопка "Authorize" в Swagger UI — чтобы можно было вставить
+    // access-токен (из /api/auth/login) и проверять защищённые
+    // эндпоинты (например /api/forms/{id}) прямо из браузера.
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Вставьте access-токен, полученный от /api/auth/login (без слова 'Bearer', только сам токен)."
+    });
+
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
 var app = builder.Build();
@@ -55,6 +119,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
