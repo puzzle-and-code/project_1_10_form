@@ -3,19 +3,44 @@ using AuthService.Infrastructure;
 using AuthService.Infrastructure.Persistence;
 using FormBuilderWithAnalytics.src.Application.Interfaces;
 using FormBuilderWithAnalytics.src.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Npgsql;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. Регистрация JWT-аутентификации (устраняет ошибку 500 с No authenticationScheme)
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+    };
+});
+
+builder.Services.AddAuthorization();
+
 builder.Services.AddControllers();
 
-// Регистрация auth из faabc1c (Add Registration and Endpoints):
-// без неё AuthController есть в дереве, но не попадает в DI.
+// Регистрация сервисов приложения
 builder.Services.AddScoped<IAuthService, FormBuilderWithAnalytics.src.Infrastructure.Services.AuthService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<IFormsService, FormsService>();
 
 // --- Swagger/OpenAPI ---
 builder.Services.AddEndpointsApiExplorer();
@@ -25,24 +50,44 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "FormBuilderWithAnalytics API",
         Version = "v1",
-        Description = "API сервиса форм/опросов: health-эндпоинты и авторизация " +
-                      "(register, login, logout, refresh)."
+        Description = "API сервиса форм/опросов: health-эндпоинты и авторизация (register, login, logout, refresh)."
     });
 
-    // Подхватываем XML-комментарии (///summary) из кода, чтобы в Swagger
-    // были человекочитаемые описания эндпоинтов, а не только сигнатуры.
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
     {
         options.IncludeXmlComments(xmlPath);
     }
+
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Введите токен в формате: Bearer ваш_токен"
+    });
+
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
 var app = builder.Build();
 
-// Swagger и автоприменение миграций — только в Development.
-// В Production миграции накатываются отдельно, не при рестарте контейнера.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -55,6 +100,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// 2. Строгий порядок middleware: сначала аутентификация, затем авторизация
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
