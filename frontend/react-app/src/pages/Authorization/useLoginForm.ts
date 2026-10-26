@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { loginRequest } from '../../api/auth';
+import { useAuth } from '../../context';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -32,6 +32,7 @@ function validate(email: string, password: string): FieldErrors {
 }
 
 export function useLoginForm() {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -60,14 +61,15 @@ export function useLoginForm() {
     setServerError(null);
 
     try {
-      const result = await loginRequest({ email, password });
+      const result = await login({ email, password });
 
       if (result.ok) {
         setIsSuccess(true);
-        // TODO: сохранить токен / редиректнуть — будет при интеграции с API
       } else {
-        setServerError(result.error ?? 'Произошла ошибка');
+        setServerError(result.error ?? 'Произошла ошибка при входе');
       }
+    } catch {
+      setServerError('Не удалось выполнить вход. Попробуйте ещё раз.');
     } finally {
       setIsLoading(false);
     }

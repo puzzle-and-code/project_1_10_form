@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -16,10 +16,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.0.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,15 +34,19 @@
   </ItemGroup>
 
   <!--
-    Папка src/ рядом — это отдельный, старый скелет (4 своих .csproj:
-    Api/Application/Domain/Infrastructure), а не часть этого проекта.
-    Без этих исключений SDK-стиль проекта по умолчанию подхватывает
-    ВСЕ .cs-файлы из подпапок, включая чужой Program.cs (конфликт
-    top-level statements, CS8802) и сгенерированные AssemblyInfo.cs
-    из obj/ других проектов (повторяющиеся атрибуты, CS0579).
+    Auth-эндпоинты (register/login/logout/refresh) и их сервисы лежат в src/.
+    Отдельный backend/src/Api/Program.cs удалён в faabc1c, Docker собирает
+    этот проект — поэтому контроллер и слои нужно компилировать здесь.
+
+    Не компилируем:
+    - obj/bin вложенных проектов (чужие AssemblyInfo, CS0579);
+    - src/Api/Controllers/HealthController.cs — тот же маршрут api/health,
+      что и Controllers/HealthController.cs.
   -->
   <ItemGroup>
-    <Compile Remove="src/**/*.cs" />
+    <Compile Remove="src/**/obj/**" />
+    <Compile Remove="src/**/bin/**" />
+    <Compile Remove="src/Api/Controllers/HealthController.cs" />
     <Content Remove="src/**/*" />
     <None Remove="src/**/*" />
     <EmbeddedResource Remove="src/**/*" />

@@ -1,92 +1,60 @@
-import { clearToken, getToken } from './tokenstore'
+export * from './tokenStore';
+export * from './httpClient';
+export * from './auth';
 
-const API_URL = (import.meta.env.VITE_API_URL ?? '')
+import { httpClient } from './httpClient';
+import { tokenStore } from './tokenStore';
+
+export const API_URL = (import.meta.env.VITE_API_URL ?? '')
   .trim()
-  .replace(/\/+$/, '')
+  .replace(/\/+$/, '');
 
 export type ApiResult<T> =
   | { ok: true; data: T | null }
-  | { ok: false; error: string; status: number | null }
+  | { ok: false; error: string; status: number | null };
 
+/**
+ * Обертка apiRequest для обратной совместимости,
+ * использующая единый httpClient (Axios) с Authorization интерцептором и withCredentials: true.
+ */
 export async function apiRequest<T>(
   path: string,
-  options: RequestInit = {},
+  options: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
 ): Promise<ApiResult<T>> {
-  if (!API_URL) {
-    return {
-      ok: false,
-      error: 'API пока не подключён: укажи VITE_API_URL.',
-      status: null,
-    }
-  }
-
-  let response: Response
-
   try {
-    const headers = new Headers(options.headers)
-    headers.set('Accept', 'application/json')
+    const url = path.startsWith('/') ? path : `/${path}`;
+    const response = await httpClient.request<T>({
+      url,
+      method: options.method || 'GET',
+      data: options.body,
+      headers: options.headers,
+    });
 
-    if (typeof options.body === 'string') {
-      if (!headers.has('Content-Type')) {
-        headers.set('Content-Type', 'application/json')
-      }
-    }
-
-    const token = getToken()
-
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`)
-    }
-
-    response = await fetch(
-      `${API_URL}/${path.replace(/^\/+/, '')}`,
-      { ...options, headers },
-    )
-  } catch {
     return {
-      ok: false,
-      error: 'Не удалось выполнить запрос. Проверь соединение и адрес API.',
-      status: null,
+      ok: true,
+      data: response.data ?? null,
+    };
+  } catch (error: any) {
+    if (error.response?.status === 401) {
+      tokenStore.clear();
+      return {
+        ok: false,
+        error: 'Необходимо войти в аккаунт.',
+        status: 401,
+      };
     }
-  }
 
-  if (response.status === 401) {
-    clearToken()
-
-    if (window.location.pathname !== '/login') {
-      window.location.assign('/login')
-    }
+    const status = error.response?.status ?? null;
+    const errorMsg =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      'Ошибка запроса к API';
 
     return {
       ok: false,
-      error: 'Необходимо войти в аккаунт.',
-      status: 401,
-    }
-  }
-
-  if (!response.ok) {
-    const error =
-      response.status === 403
-        ? 'Нет доступа к этому действию.'
-        : response.status >= 500
-          ? 'Ошибка сервера. Попробуй позже.'
-          : `Запрос не выполнен: ${response.status}.`
-
-    return { ok: false, error, status: response.status }
-  }
-
-  if (response.status === 204) {
-    return { ok: true, data: null }
-  }
-
-  try {
-    const data: T = await response.json()
-    return { ok: true, data }
-  } catch {
-    return {
-      ok: false,
-      error: 'Сервер вернул некорректный JSON.',
-      status: response.status,
-    }
+      error: errorMsg,
+      status,
+    };
   }
 }
