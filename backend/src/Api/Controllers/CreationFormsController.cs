@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace FormBuilderWithAnalytics.src.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/forms")]
     [Authorize]
     public class CreationFormsController : ControllerBase
         {
