@@ -1,4 +1,4 @@
-﻿using FormBuilderWithAnalytics.src.Application.DTOs;
+using FormBuilderWithAnalytics.src.Application.DTOs;
 using FormBuilderWithAnalytics.src.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

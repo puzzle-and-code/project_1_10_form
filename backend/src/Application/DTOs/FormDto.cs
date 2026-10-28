@@ -1,4 +1,4 @@
-﻿namespace FormBuilderWithAnalytics.src.Application.DTOs
+namespace FormBuilderWithAnalytics.src.Application.DTOs
 {
     public class FormDto
     {
