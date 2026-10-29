@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context';
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { validateEmail } from '../../utils/authValidation';
 
 interface FieldErrors {
   email?: string;
@@ -16,11 +15,8 @@ interface Touched {
 function validate(email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
 
-  if (!email) {
-    errors.email = 'Email обязателен';
-  } else if (!EMAIL_REGEX.test(email)) {
-    errors.email = 'Введите корректный email';
-  }
+  const emailError = validateEmail(email);
+  if (emailError) errors.email = emailError;
 
   if (!password) {
     errors.password = 'Пароль обязателен';
@@ -55,13 +51,13 @@ export function useLoginForm() {
 
     // Показываем все ошибки при попытке сабмита
     setTouched({ email: true, password: true });
-    if (!isFormValid) return;
+    if (!isFormValid || isLoading) return;
 
     setIsLoading(true);
     setServerError(null);
 
     try {
-      const result = await login({ email, password });
+      const result = await login({ email: email.trim(), password });
 
       if (result.ok) {
         setIsSuccess(true);

@@ -95,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await loginRequest(payload);
       if (result.ok && result.data) {
         const authData: AuthResponse = result.data;
-        setUser(authData.user ?? { email: payload.email });
+        setUser(authData.user ?? { email: payload.email.trim() });
       }
       return result;
     },

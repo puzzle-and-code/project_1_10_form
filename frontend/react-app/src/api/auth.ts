@@ -1,15 +1,13 @@
+import { isAxiosError } from 'axios';
 import { httpClient, refreshClient } from './httpClient';
 import { tokenStore } from './tokenStore';
+import { loginBody, registrationBody, type LoginPayload, type RegisterPayload } from './authContract';
+export type { LoginPayload, RegisterPayload } from './authContract';
 
 export interface User {
   id?: string | number;
   email: string;
   name?: string;
-}
-
-export interface LoginPayload {
-  email: string;
-  password: string;
 }
 
 export interface AuthResponse {
@@ -28,42 +26,52 @@ export interface LoginResult {
  * Бэкенд возвращает { accessToken, user } и устанавливает HttpOnly cookie с refreshToken.
  */
 export async function loginRequest(payload: LoginPayload): Promise<LoginResult> {
-  // Тестовые данные для локальной разработки, пока бэкенд не реализовал ручки
-  if (
-    payload.email === 'admin@example.com' &&
-    payload.password === 'password123'
-  ) {
-    const mockToken = 'mock-dev-jwt-access-token';
-    tokenStore.set(mockToken);
-    return {
-      ok: true,
-      data: {
-        accessToken: mockToken,
-        user: { email: payload.email, name: 'Admin (Dev Mode)' },
-      },
-    };
-  }
+  const body = loginBody(payload);
 
   try {
-    const response = await httpClient.post<AuthResponse>('/auth/login', payload);
+    const response = await httpClient.post<AuthResponse>('/auth/login', body, { timeout: 15000 });
 
-    if (response.data?.accessToken) {
-      tokenStore.set(response.data.accessToken);
+    if (typeof response.data?.accessToken !== 'string' || !response.data.accessToken) {
+      return { ok: false, error: 'Сервер не подтвердил вход. Попробуйте ещё раз.' };
     }
+    tokenStore.set(response.data.accessToken);
 
     return {
       ok: true,
       data: response.data,
     };
-  } catch (error: any) {
-    const serverMessage =
-      error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      (error?.response?.status === 401 ? 'Неверный email или пароль' : null);
-
+  } catch (error: unknown) {
     return {
       ok: false,
-      error: serverMessage || 'Не удалось войти. Проверьте соединение с сервером.',
+      error: authErrorMessage(error, 'Не удалось войти. Проверьте соединение с сервером.'),
+    };
+  }
+}
+
+function authErrorMessage(error: unknown, fallback: string): string {
+  if (!isAxiosError(error)) return fallback;
+  if (error.response?.status === 401) return 'Неверный email или пароль.';
+  const data: unknown = error.response?.data;
+  if (data && typeof data === 'object') {
+    const details = data as Record<string, unknown>;
+    if (typeof details.message === 'string') return details.message;
+    if (typeof details.error === 'string') return details.error;
+    if (details.errors && typeof details.errors === 'object') {
+      const messages = Object.values(details.errors).flat().filter((value) => typeof value === 'string');
+      if (messages.length > 0) return messages.join(' ');
+    }
+  }
+  return fallback;
+}
+
+export async function registerRequest(payload: RegisterPayload): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await httpClient.post('/auth/register', registrationBody(payload), { timeout: 15000 });
+    return { ok: true };
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      error: authErrorMessage(error, 'Не удалось зарегистрироваться. Проверьте данные и соединение с сервером.'),
     };
   }
 }

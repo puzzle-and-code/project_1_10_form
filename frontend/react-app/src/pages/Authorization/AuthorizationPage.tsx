@@ -46,9 +46,9 @@ export default function AuthorizationPage() {
             </CardDescription>
             <Button
               className="mt-2 w-full button button--primary"
-              onPress={() => navigate('/')}
+              onPress={() => navigate('/forms')}
             >
-              Перейти на главную
+              Перейти к моим формам
             </Button>
           </CardContent>
         </CardRoot>
@@ -75,7 +75,6 @@ export default function AuthorizationPage() {
           )}
 
           <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-            {/* Email */}
             <TextField
               value={email}
               onChange={setEmail}
@@ -90,6 +89,8 @@ export default function AuthorizationPage() {
                 type="email"
                 placeholder="you@example.com"
                 autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
                 className="input"
               />
               <FieldError className="text-danger text-xs">
