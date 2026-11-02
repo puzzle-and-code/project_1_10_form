@@ -1,9 +1,12 @@
-﻿namespace FormBuilderWithAnalytics.src.Application.DTOs
+namespace FormBuilderWithAnalytics.src.Application.DTOs
 {
     public class FormDto
-    { 
-        public string? Title { get; set; } // заголовок
-        public string? Description { get; set; } // описание
-
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string Status { get; set; } = string.Empty; // "Draft", "Published", "Deleted" и т.д.
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 }
