@@ -1,6 +1,7 @@
 export * from './tokenStore';
 export * from './httpClient';
 export * from './auth';
+export * from './forms';
 
 import { httpClient } from './httpClient';
 import { tokenStore } from './tokenStore';
