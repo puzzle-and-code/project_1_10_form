@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { type FormDto, getFormById, patchForm } from '../../api/forms';
+import { type FormDto, getFormById, patchForm, publishForm } from '../../api/forms';
 
 export interface FormValidationErrors {
   title?: string;
   description?: string;
+}
+
+export type ReadableStatus = 'Черновик' | 'Опубликована' | 'Завершена';
+
+export function getStatusLabel(status?: string): ReadableStatus {
+  if (!status) return 'Черновик';
+  const lower = status.toLowerCase();
+  if (lower === 'published' || lower === 'active') return 'Опубликована';
+  if (lower === 'completed' || lower === 'closed' || lower === 'archived') return 'Завершена';
+  return 'Черновик';
 }
 
 export function useFormDetails() {
@@ -16,10 +26,14 @@ export function useFormDetails() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishSuccess, setPublishSuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   const [touched, setTouched] = useState({
@@ -43,6 +57,8 @@ export function useFormDetails() {
       setNotFound(false);
       setSaveSuccess(false);
       setSaveError(null);
+      setPublishError(null);
+      setPublishSuccess(false);
 
       try {
         const data = await getFormById(id);
@@ -103,16 +119,47 @@ export function useFormDetails() {
     return currentTitle !== initialTitle || currentDesc !== initialDesc;
   }, [form, title, description]);
 
+  // Человекочитаемый статус
+  const statusLabel = useMemo<ReadableStatus>(() => {
+    return getStatusLabel(form?.status);
+  }, [form?.status]);
+
+  const isDraft = statusLabel === 'Черновик';
+  const isPublished = statusLabel === 'Опубликована';
+  const isCompleted = statusLabel === 'Завершена';
+
+  // Количество неудалённых вопросов
+  const questionsCount = form?.questionsCount ?? 0;
+  const hasQuestions = questionsCount > 0;
+
+  // Возможность публикации: только черновик с хотя бы одним вопросом
+  const canPublish = isDraft && hasQuestions;
+
+  // Текст причины, почему нельзя опубликовать
+  const cannotPublishReason = useMemo<string | null>(() => {
+    if (!isDraft) return null;
+    if (!hasQuestions) {
+      return 'Нельзя опубликовать форму: в ней нет ни одного вопроса. Добавьте хотя бы один вопрос в конструкторе.';
+    }
+    return null;
+  }, [isDraft, hasQuestions]);
+
+  // Публичная ссылка
+  const publicPath = id ? `/f/${id}` : '';
+  const publicUrl = typeof window !== 'undefined' && id
+    ? `${window.location.origin}/f/${id}`
+    : publicPath;
+
   const handleBlur = (field: 'title' | 'description') => {
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
+  // Сохранение названия и описания
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
     setTouched({ title: true, description: true });
 
-    // Проверка критериев 4 и 5: пустое название или превышение лимитов блокирует запрос
     if (!isValid || !title.trim() || !id) {
       return;
     }
@@ -127,7 +174,6 @@ export function useFormDetails() {
         description: description,
       });
 
-      // Критерий 6: новые данные видны сразу, без перезагрузки
       setForm(updated);
       setTitle(updated.title ?? '');
       setDescription(updated.description ?? '');
@@ -140,6 +186,48 @@ export function useFormDetails() {
       }
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Публикация формы: POST /api/forms/{id}/publish
+  const handlePublish = async () => {
+    if (!id || !canPublish) return;
+
+    setIsPublishing(true);
+    setPublishError(null);
+    setPublishSuccess(false);
+
+    try {
+      const updated = await publishForm(id);
+      // Успех меняет подпись на «Опубликована» без перезагрузки всей страницы
+      setForm(updated);
+      setPublishSuccess(true);
+    } catch (err: any) {
+      // Ошибка запроса показана в блоке, статус остаётся прежним
+      setPublishError(err?.message || 'Не удалось опубликовать форму. Попробуйте снова.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  // Копирование публичной ссылки в буфер обмена
+  const handleCopyLink = async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(publicUrl);
+      } else {
+        // Fallback для старых окружений
+        const textarea = document.createElement('textarea');
+        textarea.value = publicUrl;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Игнорируем ошибку клипборда
     }
   };
 
@@ -170,13 +258,31 @@ export function useFormDetails() {
     isDirty,
     isLoading,
     isSaving,
+    isPublishing,
     notFound,
     error,
     saveError,
     saveSuccess,
+    publishError,
+    publishSuccess,
+    copied,
+    statusLabel,
+    isDraft,
+    isPublished,
+    isCompleted,
+    questionsCount,
+    hasQuestions,
+    canPublish,
+    cannotPublishReason,
+    publicPath,
+    publicUrl,
     setSaveSuccess,
+    setPublishSuccess,
+    setPublishError,
     handleBlur,
     handleSave,
+    handlePublish,
+    handleCopyLink,
     handleReset,
     reload,
   };
