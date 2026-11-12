@@ -4,10 +4,10 @@ namespace FormBuilderWithAnalytics.src.Application.Interfaces
 {
     public interface ICreationFormsService
     {
-      
-            Task<int> CreateDraftAsync(FormDto formDto, int ownerId);
-            Task PublishFormAsync(int formId);
-            Task DeleteFormAsync(int formId);
-        
+
+        Task<Guid> CreateDraftAsync(FormDto formDto, Guid ownerId);
+        Task PublishFormAsync(Guid formId);
+        Task DeleteFormAsync(Guid formId);
+
     }
 }

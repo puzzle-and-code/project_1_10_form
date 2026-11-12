@@ -99,6 +99,15 @@ if (app.Environment.IsDevelopment())
     await ApplyDatabaseMigrationsAsync(app);
 }
 
+app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "FormBuilderWithAnalytics API v1");
+    });
+
+    await ApplyDatabaseMigrationsAsync(app);
+
+
 app.UseHttpsRedirection();
 
 // 2. Строгий порядок middleware: сначала аутентификация, затем авторизация
