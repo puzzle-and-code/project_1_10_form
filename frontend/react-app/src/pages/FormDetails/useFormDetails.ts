@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { type FormDto, getFormById, patchForm, publishForm } from '../../api/forms';
+import { type FormDto, type QuestionDto, getFormById, patchForm, publishForm } from '../../api/forms';
 
 export interface FormValidationErrors {
   title?: string;
@@ -129,7 +129,14 @@ export function useFormDetails() {
   const isCompleted = statusLabel === 'Завершена';
 
   // Количество неудалённых вопросов
-  const questionsCount = form?.questionsCount ?? 0;
+  const questionsCount = form?.questions?.length ?? form?.questionsCount ?? 0;
+
+  const appendQuestion = (question: QuestionDto) => {
+    setForm((previous) => previous && {
+      ...previous,
+      questions: [...(previous.questions ?? []), question],
+    });
+  };
   const hasQuestions = questionsCount > 0;
 
   // Возможность публикации: только черновик с хотя бы одним вопросом
@@ -174,7 +181,11 @@ export function useFormDetails() {
         description: description,
       });
 
-      setForm(updated);
+      setForm((previous) => ({
+        ...previous,
+        ...updated,
+        questions: previous?.questions ?? updated.questions,
+      }));
       setTitle(updated.title ?? '');
       setDescription(updated.description ?? '');
       setSaveSuccess(true);
@@ -200,7 +211,11 @@ export function useFormDetails() {
     try {
       const updated = await publishForm(id);
       // Успех меняет подпись на «Опубликована» без перезагрузки всей страницы
-      setForm(updated);
+      setForm((previous) => ({
+        ...previous,
+        ...updated,
+        questions: previous?.questions ?? updated.questions,
+      }));
       setPublishSuccess(true);
     } catch (err: any) {
       // Ошибка запроса показана в блоке, статус остаётся прежним
@@ -271,6 +286,8 @@ export function useFormDetails() {
     isPublished,
     isCompleted,
     questionsCount,
+    appendQuestion,
+    hideForm: () => setNotFound(true),
     hasQuestions,
     canPublish,
     cannotPublishReason,

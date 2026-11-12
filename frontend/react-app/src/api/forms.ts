@@ -2,12 +2,34 @@ import { httpClient } from './httpClient';
 
 export type FormStatus = 'draft' | 'published' | 'completed' | string;
 
+export type QuestionType = 'short_text' | 'number' | 'single_choice' | 'multiple_choice';
+
+export interface CreateQuestionPayload {
+  text: string;
+  type: QuestionType;
+  isRequired: boolean;
+  options: string[];
+}
+
+export interface QuestionDto extends Omit<CreateQuestionPayload, 'type' | 'options'> {
+  id: string;
+  type: string;
+  sortOrder: number;
+  options: { id: string; text: string; sortOrder: number }[];
+}
+
+export async function createQuestion(id: string, payload: CreateQuestionPayload): Promise<QuestionDto> {
+  const { data } = await httpClient.post<QuestionDto>(`/forms/${encodeURIComponent(id)}/questions`, payload);
+  return data;
+}
+
 export interface FormDto {
   id: string;
   title: string;
   description: string | null;
   status: FormStatus;
   questionsCount?: number;
+  questions?: QuestionDto[];
   publishedAt?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -86,11 +108,11 @@ const DEV_MOCK_FORMS: Record<string, FormDto> = {
  */
 export async function getFormById(id: string): Promise<FormDto> {
   try {
-    const response = await httpClient.get<FormDto>(`/forms/${id}`);
+    const response = await httpClient.get<FormDto>(`/forms/${encodeURIComponent(id)}`);
     return response.data;
   } catch (error: any) {
     // 404 от реального бэкенда
-    if (error?.response?.status === 404) {
+    if ([403, 404].includes(error?.response?.status)) {
       const notFoundErr = new Error('Форма не найдена');
       (notFoundErr as any).status = 404;
       throw notFoundErr;
@@ -103,8 +125,8 @@ export async function getFormById(id: string): Promise<FormDto> {
       error?.response?.status === 502 ||
       error?.response?.status === 504;
 
-    if (isNetworkError) {
-      if (DEV_MOCK_FORMS[id]) {
+    if (import.meta.env.DEV && isNetworkError) {
+      if (Object.prototype.hasOwnProperty.call(DEV_MOCK_FORMS, id)) {
         return { ...DEV_MOCK_FORMS[id] };
       }
       if (id === 'not-found' || id === '404') {
@@ -133,7 +155,7 @@ export async function patchForm(id: string, payload: UpdateFormPayload): Promise
     const response = await httpClient.patch<FormDto>(`/forms/${id}`, payload);
     return response.data;
   } catch (error: any) {
-    if (error?.response?.status === 404) {
+    if ([403, 404].includes(error?.response?.status)) {
       const notFoundErr = new Error('Форма не найдена');
       (notFoundErr as any).status = 404;
       throw notFoundErr;

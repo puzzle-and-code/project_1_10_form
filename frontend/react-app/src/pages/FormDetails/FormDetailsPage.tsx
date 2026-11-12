@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import {
   Alert,
   Badge,
@@ -13,9 +13,15 @@ import {
   TextArea,
   TextField,
 } from '@heroui/react';
+import { FormQuestions } from './FormQuestions';
 import { useFormDetails } from './useFormDetails';
 
 export default function FormDetailsPage() {
+  const { id } = useParams();
+  return <FormDetails key={id} />;
+}
+
+function FormDetails() {
   const navigate = useNavigate();
   const {
     id,
@@ -43,6 +49,8 @@ export default function FormDetailsPage() {
     isPublished,
     isCompleted,
     questionsCount,
+    appendQuestion,
+    hideForm,
     hasQuestions,
     canPublish,
     cannotPublishReason,
@@ -563,6 +571,13 @@ export default function FormDetailsPage() {
           </Card.Footer>
         </form>
       </Card>
+      <FormQuestions
+        formId={form.id}
+        questions={form.questions ?? []}
+        isCompleted={isCompleted}
+        onCreated={appendQuestion}
+        onNotFound={hideForm}
+      />
     </section>
   );
 }
