@@ -12,6 +12,9 @@ export default function HomePage() {
           <Link to="/forms/2">Форма 2 (демотест2)</Link>
         </li>
         <li>
+          <Link to="/forms/3">Форма 3 (черновик без вопросов — кнопка неактивна)</Link>
+        </li>
+        <li>
           <Link to="/forms/not-found">Форма 404 (тест)</Link>
         </li>
       </ul>

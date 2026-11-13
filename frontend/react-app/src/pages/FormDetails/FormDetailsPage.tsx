@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import {
   Alert,
   Badge,
@@ -13,9 +13,15 @@ import {
   TextArea,
   TextField,
 } from '@heroui/react';
+import { FormQuestions } from './FormQuestions';
 import { useFormDetails } from './useFormDetails';
 
 export default function FormDetailsPage() {
+  const { id } = useParams();
+  return <FormDetails key={id} />;
+}
+
+function FormDetails() {
   const navigate = useNavigate();
   const {
     id,
@@ -30,13 +36,32 @@ export default function FormDetailsPage() {
     isDirty,
     isLoading,
     isSaving,
+    isPublishing,
     notFound,
     error,
     saveError,
     saveSuccess,
+    publishError,
+    publishSuccess,
+    copied,
+    statusLabel,
+    isDraft,
+    isPublished,
+    isCompleted,
+    questionsCount,
+    appendQuestion,
+    hideForm,
+    hasQuestions,
+    canPublish,
+    cannotPublishReason,
+    publicPath,
+    publicUrl,
     setSaveSuccess,
+    setPublishSuccess,
     handleBlur,
     handleSave,
+    handlePublish,
+    handleCopyLink,
     handleReset,
     reload,
   } = useFormDetails();
@@ -53,18 +78,17 @@ export default function FormDetailsPage() {
           <Skeleton className="h-4 w-32 rounded-lg" />
         </div>
 
-        <Card className="p-6 md:p-8 flex flex-col gap-6 shadow-sm border border-default-200">
-          <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-6">
+          <Card className="p-6 md:p-8 flex flex-col gap-6 shadow-sm border border-default-200">
+            <Skeleton className="h-8 w-48 rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+          </Card>
+          <Card className="p-6 md:p-8 flex flex-col gap-6 shadow-sm border border-default-200">
             <Skeleton className="h-8 w-64 rounded-lg" />
-            <Skeleton className="h-6 w-20 rounded-full" />
-          </div>
-          <Skeleton className="h-10 w-full rounded-xl" />
-          <Skeleton className="h-32 w-full rounded-xl" />
-          <div className="flex justify-end gap-3 pt-4 border-t border-default-100">
-            <Skeleton className="h-10 w-28 rounded-xl" />
-            <Skeleton className="h-10 w-36 rounded-xl" />
-          </div>
-        </Card>
+            <Skeleton className="h-10 w-full rounded-xl" />
+            <Skeleton className="h-32 w-full rounded-xl" />
+          </Card>
+        </div>
       </section>
     );
   }
@@ -142,7 +166,7 @@ export default function FormDetailsPage() {
   }
 
   // -------------------------------------------------------------------------
-  // Состояние 4: Основной экран просмотра и редактирования формы
+  // Состояние 4: Основной экран формы
   // -------------------------------------------------------------------------
   const formattedUpdated = form.updatedAt
     ? new Date(form.updatedAt).toLocaleString('ru-RU', {
@@ -155,9 +179,9 @@ export default function FormDetailsPage() {
     : null;
 
   return (
-    <section className="mx-auto w-full max-w-3xl py-6 px-4">
+    <section className="mx-auto w-full max-w-3xl py-6 px-4 flex flex-col gap-6">
       {/* Навигационные хлебные крошки */}
-      <nav className="flex items-center gap-2 text-sm text-default-500 mb-6">
+      <nav className="flex items-center gap-2 text-sm text-default-500">
         <Link to="/" className="hover:text-primary transition-colors">
           Главная
         </Link>
@@ -171,64 +195,192 @@ export default function FormDetailsPage() {
         </span>
       </nav>
 
-      {/* Уведомление об успешном сохранении */}
-      {saveSuccess && (
-        <div className="mb-5">
-          <Alert status="success">
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Title>Изменения успешно сохранены</Alert.Title>
-              <Alert.Description>
-                Новые название и описание сохранены и отображены без перезагрузки.
-              </Alert.Description>
-            </Alert.Content>
-            <Button
-              size="sm"
-              variant="secondary"
-              onPress={() => setSaveSuccess(false)}
-            >
-              Закрыть
-            </Button>
-          </Alert>
-        </div>
-      )}
+      {/* =================================================================== */}
+      {/* БЛОК «ПУБЛИКАЦИЯ»                                                  */}
+      {/* =================================================================== */}
+      <Card className="p-6 md:p-7 shadow-sm border border-default-200 bg-white">
+        <Card.Header className="flex flex-col gap-2 p-0 pb-5 border-b border-default-100">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🚀</span>
+              <h2 className="text-xl font-bold text-default-900 tracking-tight">
+                Публикация
+              </h2>
+            </div>
 
-      {/* Ошибка при сохранении (PATCH) */}
-      {saveError && (
-        <div className="mb-5">
-          <Alert status="danger">
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Title>Не удалось сохранить изменения</Alert.Title>
-              <Alert.Description>{saveError}</Alert.Description>
-            </Alert.Content>
-          </Alert>
-        </div>
-      )}
+            {/* Критерий 1: Человекочитаемая подпись статуса */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-default-500">Статус:</span>
+              <Chip
+                size="md"
+                variant="secondary"
+                className={`font-semibold px-3 py-1 ${
+                  isPublished
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : isCompleted
+                      ? 'bg-default-200 text-default-700'
+                      : 'bg-amber-100 text-amber-800 border border-amber-300'
+                }`}
+              >
+                {statusLabel}
+              </Chip>
+            </div>
+          </div>
+        </Card.Header>
 
-      {/* Главная карточка формы */}
+        <Card.Content className="p-0 pt-5 flex flex-col gap-4">
+          {/* Уведомление об успешной публикации */}
+          {publishSuccess && (
+            <Alert status="success">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>Форма успешно опубликована!</Alert.Title>
+                <Alert.Description>
+                  Статус обновлён на «Опубликована». Публичная ссылка готова для отправки респондентам.
+                </Alert.Description>
+              </Alert.Content>
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => setPublishSuccess(false)}
+              >
+                ОК
+              </Button>
+            </Alert>
+          )}
+
+          {/* Критерий 7: Ошибка запроса показана в блоке, статус остаётся прежним */}
+          {publishError && (
+            <Alert status="danger">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>Не удалось опубликовать форму</Alert.Title>
+                <Alert.Description>{publishError}</Alert.Description>
+              </Alert.Content>
+            </Alert>
+          )}
+
+          {/* Вариант 1: Форма в статусе «Черновик» */}
+          {isDraft && (
+            <div className="flex flex-col gap-4 bg-default-50 p-4 rounded-xl border border-default-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-semibold text-default-800">
+                    Опубликовать форму
+                  </span>
+                  <span className="text-xs text-default-500">
+                    Вопросов в форме: <span className="font-semibold text-default-700">{questionsCount}</span>
+                  </span>
+                </div>
+
+                {/* Критерий 2 и 3: кнопка активна если есть вопросы, неактивна если 0 вопросов */}
+                <Button
+                  id="publish-form-button"
+                  type="button"
+                  variant="primary"
+                  isDisabled={!canPublish || isPublishing}
+                  onPress={handlePublish}
+                  className="min-w-[150px]"
+                >
+                  {isPublishing ? (
+                    <span className="flex items-center gap-2">
+                      <Spinner size="sm" />
+                      Публикация...
+                    </span>
+                  ) : (
+                    'Опубликовать'
+                  )}
+                </Button>
+              </div>
+
+              {/* Критерий 3: если неудалённых вопросов нет — виден текст, почему опубликовать нельзя */}
+              {cannotPublishReason && (
+                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-2.5 rounded-lg flex items-center gap-2">
+                  <span>⚠️</span>
+                  <span>{cannotPublishReason}</span>
+                </div>
+              )}
+
+              {hasQuestions && !cannotPublishReason && (
+                <p className="text-xs text-default-400">
+                  После публикации форма перейдёт в статус «Опубликована» и получит постоянную ссылку для сбора ответов.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Вариант 2: Форма в статусе «Опубликована» (Критерий 4, 5, 6) */}
+          {isPublished && (
+            <div className="flex flex-col gap-3 bg-emerald-50/70 p-4 rounded-xl border border-emerald-200">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-emerald-900 flex items-center gap-1.5">
+                  <span>✓</span> Форма активна и доступна для прохождения
+                </span>
+                <span className="text-xs text-emerald-700">
+                  {publicPath}
+                </span>
+              </div>
+
+              {/* Критерий 5: появляется ссылка /f/{id} и копирование в буфер */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="flex-1 bg-white border border-emerald-300 rounded-lg px-3 py-2 text-xs font-mono text-default-800 truncate select-all">
+                  {publicUrl}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    id="copy-link-button"
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onPress={handleCopyLink}
+                    className="min-w-[110px]"
+                  >
+                    {copied ? (
+                      <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                        ✓ Скопировано!
+                      </span>
+                    ) : (
+                      'Копировать'
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onPress={() => window.open(publicPath, '_blank')}
+                  >
+                    Открыть ↗
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-emerald-800">
+                Повторно опубликовать нельзя: у опубликованной формы кнопки «Опубликовать» нет.
+              </p>
+            </div>
+          )}
+
+          {/* Вариант 3: Форма в статусе «Завершена» (Критерий 6) */}
+          {isCompleted && (
+            <div className="bg-default-100 p-4 rounded-xl border border-default-200 text-xs text-default-600 flex items-center gap-2">
+              <span>🔒</span>
+              <span>Сбор ответов по этой форме завершён. Кнопка «Опубликовать» скрыта.</span>
+            </div>
+          )}
+        </Card.Content>
+      </Card>
+
+      {/* =================================================================== */}
+      {/* БЛОК «НАСТРОЙКИ ФОРМЫ» (Название и описание)                        */}
+      {/* =================================================================== */}
       <Card className="p-6 md:p-8 shadow-sm border border-default-200 bg-white">
         <Card.Header className="flex flex-col gap-2 p-0 pb-6 border-b border-default-100">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-default-900 tracking-tight">
-                Настройки формы
-              </h1>
-              {/* Статус формы: поля можно изменять в любом статусе */}
-              <Chip
-                size="sm"
-                variant="secondary"
-                className="bg-primary/10 text-primary font-medium"
-              >
-                {form.status === 'active'
-                  ? 'Опубликована'
-                  : form.status === 'archived'
-                    ? 'В архиве'
-                    : 'Черновик'}
-              </Chip>
-            </div>
+            <h1 className="text-xl font-bold text-default-900 tracking-tight">
+              Настройки полей формы
+            </h1>
 
-            {/* Индикатор статуса изменений */}
             {isDirty ? (
               <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs px-2.5 py-1 rounded-full">
                 Есть несохранённые правки
@@ -248,6 +400,41 @@ export default function FormDetailsPage() {
             </span>
           </div>
         </Card.Header>
+
+        {/* Уведомление об успешном сохранении полей */}
+        {saveSuccess && (
+          <div className="mt-5">
+            <Alert status="success">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>Изменения успешно сохранены</Alert.Title>
+                <Alert.Description>
+                  Новые название и описание вступили в силу без перезагрузки страницы.
+                </Alert.Description>
+              </Alert.Content>
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => setSaveSuccess(false)}
+              >
+                Закрыть
+              </Button>
+            </Alert>
+          </div>
+        )}
+
+        {/* Ошибка при сохранении полей (PATCH) */}
+        {saveError && (
+          <div className="mt-5">
+            <Alert status="danger">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>Не удалось сохранить изменения</Alert.Title>
+                <Alert.Description>{saveError}</Alert.Description>
+              </Alert.Content>
+            </Alert>
+          </div>
+        )}
 
         <form onSubmit={handleSave} noValidate className="flex flex-col gap-6 pt-6">
           {/* Поле: Название формы */}
@@ -282,7 +469,7 @@ export default function FormDetailsPage() {
                 id="form-title"
                 name="title"
                 type="text"
-                placeholder="Например: Опрос обратной связи клиентов"
+                placeholder="Например: демотест1"
                 autoComplete="off"
                 className="w-full font-medium"
               />
@@ -317,11 +504,11 @@ export default function FormDetailsPage() {
             <TextArea
               id="form-description"
               name="description"
-              placeholder="Добавьте пояснения или инструкции для респондентов (необязательно, можно оставить пустым)..."
+              placeholder="Добавьте пояснения или инструкции (необязательно, можно очистить)..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               onBlur={() => handleBlur('description')}
-              rows={5}
+              rows={4}
               disabled={isSaving}
               className={`w-full rounded-xl p-3 border text-sm transition-colors outline-none resize-y ${
                 errors.description
@@ -384,6 +571,13 @@ export default function FormDetailsPage() {
           </Card.Footer>
         </form>
       </Card>
+      <FormQuestions
+        formId={form.id}
+        questions={form.questions ?? []}
+        isCompleted={isCompleted}
+        onCreated={appendQuestion}
+        onNotFound={hideForm}
+      />
     </section>
   );
 }
