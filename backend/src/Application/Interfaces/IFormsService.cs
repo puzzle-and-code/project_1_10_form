@@ -11,6 +11,7 @@ namespace FormBuilderWithAnalytics.src.Application.Interfaces
             Task DeleteFormAsync(Guid formId);
             Task<IEnumerable<FormDto>> GetUserFormsAsync(Guid userId);
             Task<FormDetailsDto?> GetFormWithQuestionsAsync(Guid formId, Guid ownerId);
+            Task<FormDto?> UpdateFormAsync(Guid formId, Guid ownerId, UpdateFormDto dto);
 
     }
 }

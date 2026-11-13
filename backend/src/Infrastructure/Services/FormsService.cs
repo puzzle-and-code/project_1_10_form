@@ -106,5 +106,43 @@ namespace FormBuilderWithAnalytics.src.Infrastructure.Services
                     .ToList()
             };
         }
+
+        /// <summary>
+        /// Частично обновляет название и описание своей формы.
+        /// Чужая или отсутствующая форма — null (контроллер отвечает 404).
+        /// </summary>
+        public async Task<FormDto?> UpdateFormAsync(Guid formId, Guid ownerId, UpdateFormDto dto)
+        {
+            var form = await _context.Forms
+                .FirstOrDefaultAsync(f => f.Id == formId && f.OwnerId == ownerId && f.DeletedAt == null);
+
+            if (form == null)
+            {
+                return null;
+            }
+
+            if (dto.Title != null)
+            {
+                form.Title = dto.Title;
+            }
+
+            if (dto.Description != null)
+            {
+                form.Description = dto.Description;
+            }
+
+            form.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return new FormDto
+            {
+                Id = form.Id,
+                Title = form.Title,
+                Description = form.Description,
+                Status = form.Status,
+                CreatedAt = form.CreatedAt,
+                UpdatedAt = form.UpdatedAt
+            };
+        }
     }
 }
