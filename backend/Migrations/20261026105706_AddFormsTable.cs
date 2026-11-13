@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FormBuilderWithAnalytics.Migrations
 {
     /// <inheritdoc />
-    public partial class AddForms : Migration
+    public partial class AddFormsTable : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,24 +19,17 @@ namespace FormBuilderWithAnalytics.Migrations
                     owner_id = table.Column<Guid>(type: "uuid", nullable: false),
                     title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamptz", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamptz", nullable: false)
+                    updated_at = table.Column<DateTime>(type: "timestamptz", nullable: false),
+                    published_at = table.Column<DateTime>(type: "timestamptz", nullable: true),
+                    closed_at = table.Column<DateTime>(type: "timestamptz", nullable: true),
+                    deleted_at = table.Column<DateTime>(type: "timestamptz", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_forms", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_forms_users_owner_id",
-                        column: x => x.owner_id,
-                        principalTable: "users",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_forms_owner_id",
-                table: "forms",
-                column: "owner_id");
         }
 
         /// <inheritdoc />

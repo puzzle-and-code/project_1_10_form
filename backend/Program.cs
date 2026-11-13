@@ -1,4 +1,3 @@
-using System.Text;
 using AuthService.Application.Common;
 using AuthService.Infrastructure;
 using AuthService.Infrastructure.Persistence;
@@ -8,50 +7,40 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. Регистрация JWT-аутентификации (устраняет ошибку 500 с No authenticationScheme)
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+    };
+});
+
+builder.Services.AddAuthorization();
+
 builder.Services.AddControllers();
 
-// Регистрация auth из faabc1c (Add Registration and Endpoints):
-// без неё AuthController есть в дереве, но не попадает в DI.
+// Регистрация сервисов приложения
 builder.Services.AddScoped<IAuthService, FormBuilderWithAnalytics.src.Infrastructure.Services.AuthService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-
-// JWT-аутентификация — проверяет access-токен, который выдаёт
-// AuthController при /api/auth/login (см. JwtTokenService.GenerateAccessToken).
-// Нужна для задачи с формами: [Authorize] на FormsController иначе
-// падает при первом запросе с ошибкой "No authenticationScheme was specified" —
-// до этой задачи в проекте не было ни одного защищённого эндпоинта.
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        // Не переименовываем стандартные claim'ы (например "sub" в
-        // ClaimTypes.NameIdentifier) — в контроллерах читаем claim'ы
-        // под теми же именами, под которыми их создаёт JwtTokenService.
-        options.MapInboundClaims = false;
-
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-
-            ValidateAudience = true,
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
-
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30)
-        };
-    });
-
-builder.Services.AddAuthorization();
+builder.Services.AddScoped<IFormsService, FormsService>();
 
 // --- Swagger/OpenAPI ---
 builder.Services.AddEndpointsApiExplorer();
@@ -61,12 +50,9 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "FormBuilderWithAnalytics API",
         Version = "v1",
-        Description = "API сервиса форм/опросов: health-эндпоинты, авторизация " +
-                      "(register, login, logout, refresh) и формы (получение/обновление своих анкет)."
+        Description = "API сервиса форм/опросов: health-эндпоинты и авторизация (register, login, logout, refresh)."
     });
 
-    // Подхватываем XML-комментарии (///summary) из кода, чтобы в Swagger
-    // были человекочитаемые описания эндпоинтов, а не только сигнатуры.
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
@@ -74,9 +60,6 @@ builder.Services.AddSwaggerGen(options =>
         options.IncludeXmlComments(xmlPath);
     }
 
-    // Кнопка "Authorize" в Swagger UI — чтобы можно было вставить
-    // access-токен (из /api/auth/login) и проверять защищённые
-    // эндпоинты (например /api/forms/{id}) прямо из браузера.
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -84,7 +67,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Вставьте access-токен, полученный от /api/auth/login (без слова 'Bearer', только сам токен)."
+        Description = "Введите токен в формате: Bearer ваш_токен"
     });
 
     options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
@@ -105,8 +88,6 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// Swagger и автоприменение миграций — только в Development.
-// В Production миграции накатываются отдельно, не при рестарте контейнера.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -118,8 +99,18 @@ if (app.Environment.IsDevelopment())
     await ApplyDatabaseMigrationsAsync(app);
 }
 
+app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "FormBuilderWithAnalytics API v1");
+    });
+
+    await ApplyDatabaseMigrationsAsync(app);
+
+
 app.UseHttpsRedirection();
 
+// 2. Строгий порядок middleware: сначала аутентификация, затем авторизация
 app.UseAuthentication();
 app.UseAuthorization();
 

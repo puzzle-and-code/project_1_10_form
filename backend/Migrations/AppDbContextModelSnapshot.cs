@@ -38,33 +38,126 @@ namespace FormBuilderWithAnalytics.Migrations
 
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
                 {
-                    b.Property<Guid>("id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
-                    b.Property<DateTime>("created_at")
-                        .HasColumnType("timestamptz");
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("closed_at");
 
-                    b.Property<string>("description")
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
                         .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
 
-                    b.Property<Guid>("owner_id")
-                        .HasColumnType("uuid");
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
 
-                    b.Property<string>("title")
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("published_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
 
-                    b.Property<DateTime>("updated_at")
-                        .HasColumnType("timestamptz");
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
 
-                    b.HasKey("id");
-
-                    b.HasIndex("owner_id");
+                    b.HasKey("Id");
 
                     b.ToTable("forms", (string)null);
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Option", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("question_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionId");
+
+                    b.ToTable("options");
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Question", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("FormId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("form_id");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_required");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FormId");
+
+                    b.ToTable("questions");
                 });
 
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.User", b =>
@@ -99,13 +192,36 @@ namespace FormBuilderWithAnalytics.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Option", b =>
                 {
-                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("owner_id")
+                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.Question", "Question")
+                        .WithMany("Options")
+                        .HasForeignKey("QuestionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Question");
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Question", b =>
+                {
+                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.Form", "Form")
+                        .WithMany("Questions")
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Form");
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
+                {
+                    b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Question", b =>
+                {
+                    b.Navigation("Options");
                 });
 #pragma warning restore 612, 618
         }

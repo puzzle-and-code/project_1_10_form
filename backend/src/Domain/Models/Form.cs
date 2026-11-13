@@ -1,40 +1,47 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace FormBuilderWithAnalytics.src.Domain.Models
 {
-    /// <summary>
-    /// Анкета (форма/опрос). Минимальная версия под текущие задачи
-    /// (GET своей формы, PATCH названия/описания) — поля вопросов,
-    /// черновик/публикация и т.д. добавятся отдельными задачами.
-    /// </summary>
-    public class Form
-    {
-        /// <summary>
-        /// Идентификатор формы
-        /// </summary>
-        public Guid id { get; set; }
+    [Table("forms")]
+        public class Form
+        {
+            [Key]
+            [Column("id")]
+            public Guid Id { get; set; } = Guid.NewGuid();
 
-        /// <summary>
-        /// Id пользователя-владельца (создателя) формы
-        /// </summary>
-        public Guid owner_id { get; set; }
+            [Column("owner_id")]
+            public Guid OwnerId { get; set; }
 
-        /// <summary>
-        /// Название формы
-        /// </summary>
-        public string title { get; set; } = string.Empty;
+            [Column("title")]
+            [Required]
+            [MaxLength(200)]
+            public string Title { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Описание формы (необязательное)
-        /// </summary>
-        public string? description { get; set; }
+            [Column("description")]
+            [MaxLength(2000)]
+            public string? Description { get; set; }
 
-        /// <summary>
-        /// Дата создания
-        /// </summary>
-        public DateTime created_at { get; set; }
+            [Column("status")]
+            [Required]
+            [MaxLength(20)]
+            public string Status { get; set; } = "draft"; // По умолчанию draft
 
-        /// <summary>
-        /// Дата последнего изменения
-        /// </summary>
-        public DateTime updated_at { get; set; }
+            [Column("created_at")]
+            public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+            [Column("updated_at")]
+            public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+            [Column("published_at")]
+            public DateTime? PublishedAt { get; set; }
+
+            [Column("closed_at")]
+            public DateTime? ClosedAt { get; set; }
+
+            [Column("deleted_at")]
+            public DateTime? DeletedAt { get; set; }
+            public ICollection<Question> Questions { get; set; } = new List<Question>();
     }
 }
+

@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FormBuilderWithAnalytics.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261024155429_AddForms")]
-    partial class AddForms
+    [Migration("20261022140345_FormTable")]
+    partial class FormTable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -41,33 +41,45 @@ namespace FormBuilderWithAnalytics.Migrations
 
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
                 {
-                    b.Property<Guid>("id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("integer");
 
-                    b.Property<DateTime>("created_at")
-                        .HasColumnType("timestamptz");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                    b.Property<DateTime>("Closed_at")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("owner_id")
-                        .HasColumnType("uuid");
+                    b.Property<DateTime>("Created_at")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("title")
+                    b.Property<DateTime>("Deleted_at")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
-                    b.Property<DateTime>("updated_at")
-                        .HasColumnType("timestamptz");
+                    b.Property<int>("Owner_id")
+                        .HasColumnType("integer");
 
-                    b.HasKey("id");
+                    b.Property<DateTime>("Published_at")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.HasIndex("owner_id");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.ToTable("forms", (string)null);
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Updated_at")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Forms");
                 });
 
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.User", b =>
@@ -100,15 +112,6 @@ namespace FormBuilderWithAnalytics.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
-                });
-
-            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
-                {
-                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("owner_id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
