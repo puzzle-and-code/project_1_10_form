@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 import EditformsPage from './pages/Editforms';
 import SignPage from './pages/Sign';
 import AuthorizationPage from './pages/Authorization';
+import FormDetailsPage from './pages/FormDetails';
 
 export default function App() {
   return (
@@ -21,6 +22,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <EditformsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/forms/:id"
+            element={
+              <ProtectedRoute>
+                <FormDetailsPage />
               </ProtectedRoute>
             }
           />
