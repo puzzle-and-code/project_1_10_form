@@ -15,14 +15,14 @@ namespace FormBuilderWithAnalytics.src.Infrastructure.Services
             _context = context;
         }
 
-        public async Task<Guid> CreateDraftAsync(FormDto formDto, Guid ownerId) // Создаем черновик формы
+        public async Task<Guid> CreateDraftAsync(FormDto formDto, Guid ownerId) 
         {
             var form = new Form
             {
-                OwnerId = ownerId, // Приводим к camelCase/PascalCase вашей модели Form
+                OwnerId = ownerId, 
                 Title = formDto.Title ?? "Без названия",
                 Description = formDto.Description ?? string.Empty,
-                Status = "draft", // Соответствует спецификации с маленькой буквы ("draft")
+                Status = "draft", 
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -30,14 +30,14 @@ namespace FormBuilderWithAnalytics.src.Infrastructure.Services
             _context.Forms.Add(form);
             await _context.SaveChangesAsync();
 
-            return form.Id; // Возвращает Guid созданной формы
+            return form.Id; 
         }
 
         public async Task<IEnumerable<FormDto>> GetUserFormsAsync(Guid userId)
         {
-            // Получаем все формы конкретного пользователя (включая черновики и т.д.)
+           
             var forms = await _context.Forms
-                .Where(f => f.OwnerId == userId) // Фильтруем по ID владельца
+                .Where(f => f.OwnerId == userId) 
                 .Select(f => new FormDto
                 {
                     Id = f.Id,
@@ -51,14 +51,60 @@ namespace FormBuilderWithAnalytics.src.Infrastructure.Services
             return forms;
         }
 
-        public Task PublishFormAsync(Guid formId) // Опубликовать форму (изменили int на Guid)
+        public Task PublishFormAsync(Guid formId) 
         {
             throw new NotImplementedException();
         }
 
-        public Task DeleteFormAsync(Guid formId) // Удалить форму (изменили int на Guid)
+        public Task DeleteFormAsync(Guid formId) 
         {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Получение формы с неудалёнными вопросами и вариантами, отсортированными по sort_order.
+        /// </summary>
+        public async Task<FormDetailsDto?> GetFormWithQuestionsAsync(Guid formId, Guid ownerId)
+        {
+            var form = await _context.Forms
+                .Where(f => f.Id == formId && f.OwnerId == ownerId && f.DeletedAt == null)
+                .Include(f => f.Questions.Where(q => q.DeletedAt == null))
+                    .ThenInclude(q => q.Options.Where(o => o.DeletedAt == null))
+                .FirstOrDefaultAsync();
+
+            if (form == null)
+            {
+                return null;
+            }
+
+            return new FormDetailsDto
+            {
+                Id = form.Id,
+                Title = form.Title,
+                Description = form.Description,
+                Status = form.Status,
+                CreatedAt = form.CreatedAt,
+                Questions = form.Questions
+                    .OrderBy(q => q.SortOrder)
+                    .Select(q => new QuestionDto
+                    {
+                        Id = q.Id,
+                        Text = q.Text,
+                        Type = q.Type,
+                        IsRequired = q.IsRequired,
+                        SortOrder = q.SortOrder,
+                        Options = q.Options
+                            .OrderBy(o => o.SortOrder)
+                            .Select(o => new OptionDto
+                            {
+                                Id = o.Id,
+                                Text = o.Text,
+                                SortOrder = o.SortOrder
+                            })
+                            .ToList()
+                    })
+                    .ToList()
+            };
         }
     }
 }

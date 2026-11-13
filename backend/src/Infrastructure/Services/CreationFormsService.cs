@@ -5,43 +5,42 @@ using FormBuilderWithAnalytics.src.Domain.Models;
 
 namespace FormBuilderWithAnalytics.src.Infrastructure.Services
 {
-    public class CreationFormsService: ICreationFormsService
-    {
-        private readonly AppDbContext _context;
-
-        public CreationFormsService(AppDbContext context)
+  
+        public class CreationFormsService : ICreationFormsService
         {
-            _context = context;
-        }
+            private readonly AppDbContext _context;
 
-        public async Task<int> CreateDraftAsync(FormDto formDto, int ownerId) //создаем черновик формы
-        {
-            var form = new Form
+            public CreationFormsService(AppDbContext context)
             {
-                Owner_id = ownerId,
-                Title = formDto.Title ?? "Без названия",
-                Description = formDto.Description ?? string.Empty,
-                Status = "Draft", // Черновик
-                Created_at = DateTime.UtcNow,
-                Updated_at = DateTime.UtcNow
-            };
+                _context = context;
+            }
 
-            _context.Forms.Add(form);
-            await _context.SaveChangesAsync();
+            public async Task<Guid> CreateDraftAsync(FormDto formDto, Guid ownerId)
+            {
+                var form = new Form
+                {
+                    OwnerId = ownerId,
+                    Title = formDto.Title ?? "Без названия",
+                    Description = formDto.Description ?? string.Empty,
+                    Status = "draft",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
 
-            return form.Id; // Возвращаем ID созданной формы
+                _context.Forms.Add(form);
+                await _context.SaveChangesAsync();
+
+                return form.Id;
+            }
+
+            public Task PublishFormAsync(Guid formId)
+            {
+                throw new NotImplementedException();
+            }
+
+            public Task DeleteFormAsync(Guid formId)
+            {
+                throw new NotImplementedException();
+            }
         }
-
-        public Task PublishFormAsync(int formId) //опубликовать форму
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task DeleteFormAsync(int formId) //удалить форму
-        {
-            throw new NotImplementedException();
-        }
-
-       
     }
-}

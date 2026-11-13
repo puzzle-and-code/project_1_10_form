@@ -10,7 +10,7 @@ namespace FormBuilderWithAnalytics.src.Application.Interfaces
             Task PublishFormAsync(Guid formId);
             Task DeleteFormAsync(Guid formId);
             Task<IEnumerable<FormDto>> GetUserFormsAsync(Guid userId);
-        
+            Task<FormDetailsDto?> GetFormWithQuestionsAsync(Guid formId, Guid ownerId);
 
     }
 }

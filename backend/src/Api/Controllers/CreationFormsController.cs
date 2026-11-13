@@ -45,23 +45,37 @@ namespace FormBuilderWithAnalytics.src.Api.Controllers
                 }
             }
 
-            [HttpGet]
-            public async Task<IActionResult> GetMyForms()
+            [HttpGet("{id}")]
+            public async Task<IActionResult> GetFormById(Guid id)
             {
-                // 1. Достаем ID пользователя из Claims текущего JWT токена
-                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                                  ?? User.FindFirstValue("sub"); // На случай, если ключом записан "sub"
+                // 1. Достаем ID пользователя из JWT-токена
+                var userClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                                ?? User.FindFirstValue("sub");
 
-                if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
+                if (userClaim == null || !Guid.TryParse(userClaim, out var ownerId))
                 {
                     return Unauthorized(new { message = "Не удалось определить ID пользователя из токена." });
                 }
 
-                // 2. Запрашиваем формы у сервиса
-                var forms = await _formsService.GetUserFormsAsync(userId);
+                try
+                {
+                    // 2. Запрашиваем форму с вопросами и вариантами через сервис
+                   
+                    var formDto = await _formsService.GetFormWithQuestionsAsync(id, ownerId);
 
-                // 3. Возвращаем результат
-                return Ok(forms);
+                    if (formDto == null)
+                    {
+                      
+                        return NotFound(new { message = "Форма не найдена." });
+                    }
+
+                    return Ok(formDto);
+                }
+                catch (Exception ex)
+                {
+                    var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                    return BadRequest(new { Error = innerMessage });
+                }
             }
-        }
+    }
 }

@@ -40,7 +40,8 @@ namespace FormBuilderWithAnalytics.src.Domain.Models
             public DateTime? ClosedAt { get; set; }
 
             [Column("deleted_at")]
-            public DateTime? DeletedAt { get; set; } // Если заполнено, значит форма удалена (мягкое удаление)
-        }
+            public DateTime? DeletedAt { get; set; }
+            public ICollection<Question> Questions { get; set; } = new List<Question>();
+    }
 }
 
