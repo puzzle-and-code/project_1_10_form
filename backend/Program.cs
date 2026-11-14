@@ -41,6 +41,7 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<IFormsService, FormsService>();
+builder.Services.AddScoped<IQuestionsService, QuestionsService>();
 
 // --- Swagger/OpenAPI ---
 builder.Services.AddEndpointsApiExplorer();
