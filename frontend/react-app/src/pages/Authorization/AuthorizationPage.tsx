@@ -46,9 +46,9 @@ export default function AuthorizationPage() {
             </CardDescription>
             <Button
               className="mt-2 w-full button button--primary"
-              onPress={() => navigate('/')}
+              onPress={() => navigate('/forms')}
             >
-              Перейти на главную
+              Перейти к моим формам
             </Button>
           </CardContent>
         </CardRoot>

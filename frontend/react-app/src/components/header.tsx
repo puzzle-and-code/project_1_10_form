@@ -13,8 +13,8 @@ export default function Header() {
         </Link>
 
         <nav className="navigation flex items-center gap-4">
-          <Link to="/">Главная</Link>
-          <Link to="/editform">Создать форму</Link>
+          <Link to="/forms">Мои формы</Link>
+          <Link to="/forms?create=1">Создать форму</Link>
 
           {isAuthenticated ? (
             <div className="flex items-center gap-3 ml-2">

@@ -1,30 +1,41 @@
-import { Route, Routes } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router';
 import Header from './components/header';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
-import HomePage from './pages/HomePage';
-import EditformsPage from './pages/Editforms';
+import FormsPage from './pages/Forms';
 import SignPage from './pages/Sign';
 import AuthorizationPage from './pages/Authorization';
 import FormDetailsPage from './pages/FormDetails';
+import PublicFormPage from './pages/PublicForm';
 
 export default function App() {
+  return (
+    <Routes>
+      <Route path="/f/:id" element={<PublicFormPage />} />
+      <Route path="/*" element={<OwnerApp />} />
+    </Routes>
+  );
+}
+
+function OwnerApp() {
   return (
     <AuthProvider>
       <Header />
 
       <main className="container page-container">
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<Navigate to="/forms" replace />} />
           <Route
-            path="/editform"
+            path="/forms"
             element={
               <ProtectedRoute>
-                <EditformsPage />
+                <FormsPage />
               </ProtectedRoute>
             }
           />
+          <Route path="/createform" element={<Navigate to="/forms?create=1" replace />} />
+          <Route path="/editform" element={<Navigate to="/forms?create=1" replace />} />
           <Route
             path="/forms/:id"
             element={

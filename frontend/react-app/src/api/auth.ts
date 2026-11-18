@@ -30,6 +30,7 @@ export interface LoginResult {
 export async function loginRequest(payload: LoginPayload): Promise<LoginResult> {
   // Тестовые данные для локальной разработки, пока бэкенд не реализовал ручки
   if (
+    import.meta.env.DEV &&
     payload.email === 'admin@example.com' &&
     payload.password === 'password123'
   ) {
@@ -39,7 +40,7 @@ export async function loginRequest(payload: LoginPayload): Promise<LoginResult> 
       ok: true,
       data: {
         accessToken: mockToken,
-        user: { email: payload.email, name: 'Admin (Dev Mode)' },
+        user: { id: 'demo-admin', email: payload.email, name: 'Admin' },
       },
     };
   }

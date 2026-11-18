@@ -1,7 +1,8 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Button, Card, FieldError, Input, Label, TextField } from '@heroui/react';
-import { isAxiosError } from 'axios';
-import { createQuestion, type QuestionDto, type QuestionType } from '../../api/forms';
+import { createQuestion, getFormsError, type QuestionDto, type QuestionType } from '../../api/forms';
+import { FormsError } from '../../api/formsData';
+import { QuestionOrderList } from './QuestionOrderList';
 
 const typeLabels: Record<QuestionType, string> = {
   short_text: 'Короткий текст',
@@ -15,44 +16,28 @@ interface Props {
   questions: QuestionDto[];
   isCompleted: boolean;
   onCreated: (question: QuestionDto) => void;
+  onReordered: (questions: QuestionDto[]) => void;
   onNotFound: () => void;
 }
 
-export function FormQuestions({ formId, questions, isCompleted, onCreated, onNotFound }: Props) {
+export function FormQuestions({ formId, questions, isCompleted, onCreated, onReordered, onNotFound }: Props) {
   const [isAdding, setIsAdding] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
 
   return (
     <Card className="flex flex-col gap-5 border border-default-200 bg-white p-6 shadow-sm md:p-8">
       <Card.Header className="flex flex-wrap items-center justify-between gap-3 p-0">
         <h2 className="text-xl font-bold text-default-900">Вопросы</h2>
         {!isCompleted && !isAdding && (
-          <Button type="button" onPress={() => setIsAdding(true)}>Добавить вопрос</Button>
+          <Button type="button" isDisabled={isReordering} onPress={() => setIsAdding(true)}>Добавить вопрос</Button>
         )}
       </Card.Header>
 
       {questions.length === 0 ? (
         <p className="text-sm text-default-500">В форме пока нет вопросов.</p>
       ) : (
-        <ol className="flex flex-col gap-3">
-          {questions.map((question, index) => (
-            <li key={question.id} className="rounded-xl border border-default-200 p-4">
-              <h3 className="break-words font-semibold">{index + 1}. {question.text}</h3>
-              <p className="mt-1 text-sm text-default-600">
-                {Object.prototype.hasOwnProperty.call(typeLabels, question.type) ? typeLabels[question.type as QuestionType] : question.type}
-                {' · '}
-                {question.isRequired ? 'Обязательный' : 'Необязательный'}
-              </p>
-              {(question.options?.length ?? 0) > 0 && (
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                  {question.options.map((option) => <li key={option.id} className="break-words">{option.text}</li>)}
-                </ul>
-              )}
-              <p className="mt-2 text-xs text-default-500">
-                Чтобы изменить тип, удалите вопрос и создайте его заново.
-              </p>
-            </li>
-          ))}
-        </ol>
+        <QuestionOrderList formId={formId} questions={questions} isCompleted={isCompleted} isAdding={isAdding}
+          onReordered={onReordered} onBusyChange={setIsReordering} />
       )}
 
       {isAdding && !isCompleted && (
@@ -108,11 +93,10 @@ function NewQuestionForm({
       });
       onCreated(question);
     } catch (err) {
-      if (isAxiosError(err) && [403, 404].includes(err.response?.status ?? 0)) {
+      if (err instanceof FormsError && [403, 404].includes(err.status ?? 0)) {
         onNotFound();
       } else {
-        const message = isAxiosError(err) ? err.response?.data?.message : undefined;
-        setError(message || 'Не удалось добавить вопрос. Попробуйте снова.');
+        setError(getFormsError(err));
       }
     } finally {
       submitting.current = false;
