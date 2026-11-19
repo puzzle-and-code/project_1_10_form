@@ -19,7 +19,6 @@ export function getPublicFormsError(error: unknown): string {
   return 'Не удалось выполнить запрос. Попробуйте ещё раз.';
 }
 
-// Контракт новых методов описан в docs/forms-api-contract.md.
 export function createPublicFormsClient(http: AxiosInstance, demo: () => ReturnType<typeof createDemoFormsStore> | null) {
   async function request<T>(action: () => Promise<T>): Promise<T> {
     try { return await action(); }
