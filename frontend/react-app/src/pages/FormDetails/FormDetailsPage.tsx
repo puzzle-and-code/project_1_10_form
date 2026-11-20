@@ -50,6 +50,7 @@ function FormDetails() {
     isCompleted,
     questionsCount,
     appendQuestion,
+    replaceQuestions,
     hideForm,
     hasQuestions,
     canPublish,
@@ -114,13 +115,13 @@ function FormDetails() {
           <Card.Footer className="flex flex-wrap justify-center gap-3 pt-4 p-0">
             <Button
               variant="secondary"
-              onPress={() => navigate('/')}
+              onPress={() => navigate('/forms')}
             >
-              На главную
+              К списку форм
             </Button>
             <Button
               variant="primary"
-              onPress={() => navigate('/editform')}
+              onPress={() => navigate('/forms?create=1')}
             >
               Создать форму
             </Button>
@@ -149,7 +150,7 @@ function FormDetails() {
           <div className="flex justify-end gap-3">
             <Button
               variant="secondary"
-              onPress={() => navigate('/')}
+              onPress={() => navigate('/forms')}
             >
               Назад
             </Button>
@@ -186,7 +187,7 @@ function FormDetails() {
           Главная
         </Link>
         <span>/</span>
-        <Link to="/editform" className="hover:text-primary transition-colors">
+        <Link to="/forms" className="hover:text-primary transition-colors">
           Формы
         </Link>
         <span>/</span>
@@ -236,7 +237,7 @@ function FormDetails() {
               <Alert.Content>
                 <Alert.Title>Форма успешно опубликована!</Alert.Title>
                 <Alert.Description>
-                  Статус обновлён на «Опубликована». Публичная ссылка готова для отправки респондентам.
+                  Теперь можно открыть форму как участник и заполнить её.
                 </Alert.Description>
               </Alert.Content>
               <Button
@@ -303,7 +304,7 @@ function FormDetails() {
 
               {hasQuestions && !cannotPublishReason && (
                 <p className="text-xs text-default-400">
-                  После публикации форма перейдёт в статус «Опубликована» и получит постоянную ссылку для сбора ответов.
+                  После публикации форму можно будет открыть по ссылке и заполнить.
                 </p>
               )}
             </div>
@@ -349,14 +350,14 @@ function FormDetails() {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    onPress={() => window.open(publicPath, '_blank')}
+                    onPress={() => window.open(publicPath, '_blank', 'noopener,noreferrer')}
                   >
-                    Открыть ↗
+                    Открыть как участник ↗
                   </Button>
                 </div>
               </div>
               <p className="text-xs text-emerald-800">
-                Повторно опубликовать нельзя: у опубликованной формы кнопки «Опубликовать» нет.
+                Откройте форму, чтобы заполнить её и отправить ответы.
               </p>
             </div>
           )}
@@ -469,7 +470,7 @@ function FormDetails() {
                 id="form-title"
                 name="title"
                 type="text"
-                placeholder="Например: демотест1"
+                placeholder="Например: Обратная связь по курсу"
                 autoComplete="off"
                 className="w-full font-medium"
               />
@@ -533,7 +534,7 @@ function FormDetails() {
             <Button
               type="button"
               variant="secondary"
-              onPress={() => navigate('/')}
+              onPress={() => navigate('/forms')}
               isDisabled={isSaving}
             >
               К списку
@@ -576,6 +577,7 @@ function FormDetails() {
         questions={form.questions ?? []}
         isCompleted={isCompleted}
         onCreated={appendQuestion}
+        onReordered={replaceQuestions}
         onNotFound={hideForm}
       />
     </section>

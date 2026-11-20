@@ -6,16 +6,13 @@ export default function HomePage() {
       <h1>Главная страница</h1>
       <ul style={{ marginTop: '1rem', listStyle: 'disc', paddingLeft: '1.5rem' }}>
         <li>
-          <Link to="/forms/1">Форма 1 (демотест1)</Link>
+          <Link to="/forms/1">Обратная связь по курсу</Link>
         </li>
         <li>
-          <Link to="/forms/2">Форма 2 (демотест2)</Link>
+          <Link to="/forms/2">Опрос команды</Link>
         </li>
         <li>
-          <Link to="/forms/3">Форма 3 (черновик без вопросов — кнопка неактивна)</Link>
-        </li>
-        <li>
-          <Link to="/forms/not-found">Форма 404 (тест)</Link>
+          <Link to="/forms/3">Новая анкета</Link>
         </li>
       </ul>
     </div>

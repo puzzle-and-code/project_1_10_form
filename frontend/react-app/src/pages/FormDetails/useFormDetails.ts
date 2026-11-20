@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { type FormDto, type QuestionDto, getFormById, patchForm, publishForm } from '../../api/forms';
+import { type FormDto, type QuestionDto, getFormById, patchForm, publishForm, isDemoFormsSession } from '../../api/forms';
 
 export interface FormValidationErrors {
   title?: string;
@@ -152,9 +152,9 @@ export function useFormDetails() {
   }, [isDraft, hasQuestions]);
 
   // Публичная ссылка
-  const publicPath = id ? `/f/${id}` : '';
+  const publicPath = id ? `/f/${encodeURIComponent(id)}${isDemoFormsSession() ? '?demo=1' : ''}` : '';
   const publicUrl = typeof window !== 'undefined' && id
-    ? `${window.location.origin}/f/${id}`
+    ? `${window.location.origin}${publicPath}`
     : publicPath;
 
   const handleBlur = (field: 'title' | 'description') => {
@@ -261,6 +261,7 @@ export function useFormDetails() {
   }, []);
 
   return {
+    isDemo: isDemoFormsSession(),
     id,
     form,
     title,
@@ -287,6 +288,7 @@ export function useFormDetails() {
     isCompleted,
     questionsCount,
     appendQuestion,
+    replaceQuestions: (questions: QuestionDto[]) => setForm(previous => previous && { ...previous, questions, questionsCount: questions.length }),
     hideForm: () => setNotFound(true),
     hasQuestions,
     canPublish,
