@@ -8,70 +8,74 @@ using Microsoft.AspNetCore.Mvc;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly IAuthService _authService; 
+    private const string RefreshCookieName = "refreshToken";
+    private readonly IAuthService _authService;
 
     public AuthController(IAuthService authService)
     {
         _authService = authService;
     }
 
-    // 1. Эндпоинт для регистрации нового пользователя
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto model)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
-        
-        var result = await _authService.RegisterAsync(model);
-        if (result == null)
-            return BadRequest(new { message = "Пользователь с таким email уже существует." });
 
-        return Ok(new { message = "Регистрация прошла успешно!" });
+        try
+        {
+            await _authService.RegisterAsync(model);
+            return Ok(new { message = "Регистрация прошла успешно!" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message, code = "USER_ALREADY_EXISTS" });
+        }
     }
 
-    // 2. Эндпоинт для авторизации (логина) пользователя
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var result = await _authService.LoginAsync(dto); // Проверяет пароль, создает accessToken и refreshToken
-
-        // Упаковываем Refresh Token в HttpOnly Cookie
-        var cookieOptions = new CookieOptions
+        if (!ModelState.IsValid)
         {
-            HttpOnly = true,
-            Secure = false, 
-            SameSite = SameSiteMode.Lax,
-            Path = "/api/auth", 
-            Expires = DateTime.UtcNow.AddDays(7) 
-        };
+            return Unauthorized(new
+            {
+                message = "Неверный email или пароль",
+                code = "INVALID_CREDENTIALS"
+            });
+        }
 
-        Response.Cookies.Append("refreshToken", result.RefreshToken, cookieOptions);
-
-        // Возвращаем accessToken и данные пользователя в JSON
-        return Ok(new
+        try
         {
-            accessToken = result.AccessToken,
-            user = result.User
-        });
+            var result = await _authService.LoginAsync(dto);
+
+            SetRefreshCookie(result.RefreshToken);
+
+            return Ok(new
+            {
+                accessToken = result.AccessToken,
+                user = result.User
+            });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new
+            {
+                message = "Неверный email или пароль",
+                code = "INVALID_CREDENTIALS"
+            });
+        }
     }
 
-    // 3. Эндпоинт для завершения сессии (логаут)
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        if (Request.Cookies.TryGetValue("refreshToken", out var refreshToken))
+        if (Request.Cookies.TryGetValue(RefreshCookieName, out var refreshToken) && !string.IsNullOrWhiteSpace(refreshToken))
         {
-            await _authService.LogoutAsync(refreshToken); // Удаляем из базы
+            await _authService.LogoutAsync(refreshToken);
         }
 
-        // Стираем куку на клиенте
-        Response.Cookies.Delete("refreshToken", new CookieOptions
-        {
-            Path = "/api/auth",
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Lax
-        });
+        Response.Cookies.Delete(RefreshCookieName, CreateCookieOptions(DateTime.UtcNow.AddDays(-1)));
 
         return Ok(new { message = "Logged out successfully" });
     }
@@ -79,30 +83,55 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh()
     {
-        // Читаем рефреш токен из куки
-        if (!Request.Cookies.TryGetValue("refreshToken", out var refreshToken))
+        if (!Request.Cookies.TryGetValue(RefreshCookieName, out var refreshToken) || string.IsNullOrWhiteSpace(refreshToken))
         {
-            return Unauthorized(new { message = "Refresh token is missing" });
+            return Unauthorized(new
+            {
+                message = "Refresh token отсутствует.",
+                code = "REFRESH_TOKEN_MISSING"
+            });
         }
 
-        var result = await _authService.RefreshTokenAsync(refreshToken); // Проверяет токен в базе/ротирует
+        try
+        {
+            var result = await _authService.RefreshTokenAsync(refreshToken);
 
-        // Записываем новый Refresh Token в куку (перезаписываем старый)
-        var cookieOptions = new CookieOptions
+            SetRefreshCookie(result.RefreshToken);
+
+            return Ok(new
+            {
+                accessToken = result.AccessToken,
+                user = result.User
+            });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new
+            {
+                message = "Недействительный или истекший refresh token.",
+                code = "INVALID_REFRESH_TOKEN"
+            });
+        }
+    }
+
+    private void SetRefreshCookie(string refreshToken)
+    {
+        Response.Cookies.Append(
+            RefreshCookieName,
+            refreshToken,
+            CreateCookieOptions(DateTime.UtcNow.AddDays(7))
+        );
+    }
+
+    private CookieOptions CreateCookieOptions(DateTime expiresUtc)
+    {
+        return new CookieOptions
         {
             HttpOnly = true,
-            Secure = false,
+            Secure = Request.IsHttps,
             SameSite = SameSiteMode.Lax,
-            Path = "/",    
-            Expires = DateTime.UtcNow.AddDays(7)
+            Path = "/api/auth",
+            Expires = expiresUtc
         };
-
-        Response.Cookies.Append("refreshToken", result.RefreshToken, cookieOptions);
-
-        return Ok(new
-        {
-            accessToken = result.AccessToken,
-            user = result.User
-        });
     }
 }

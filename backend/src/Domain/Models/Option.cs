@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FormBuilderWithAnalytics.src.Domain.Models
 {
-    [Table("options")] 
+    [Table("question_options")]
     public class Option
     {
         [Key]
@@ -11,16 +11,20 @@ namespace FormBuilderWithAnalytics.src.Domain.Models
         public Guid Id { get; set; } = Guid.NewGuid();
 
         [Column("question_id")]
-        public Guid QuestionId { get; set; } // Внешний ключ на вопрос
+        public Guid QuestionId { get; set; }
 
         public Question Question { get; set; } = null!;
 
         [Column("text")]
         [Required]
-        public string Text { get; set; } = string.Empty; // Текст варианта ответа
+        [MaxLength(200)]
+        public string Text { get; set; } = string.Empty;
 
         [Column("sort_order")]
-        public int SortOrder { get; set; }   // Порядковый номер для сортировки
+        public int SortOrder { get; set; }
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         [Column("deleted_at")]
         public DateTime? DeletedAt { get; set; }

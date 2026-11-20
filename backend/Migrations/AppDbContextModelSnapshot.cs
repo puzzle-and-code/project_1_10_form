@@ -96,8 +96,12 @@ namespace FormBuilderWithAnalytics.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamptz")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid>("QuestionId")
@@ -110,14 +114,16 @@ namespace FormBuilderWithAnalytics.Migrations
 
                     b.Property<string>("Text")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("text");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("QuestionId");
+                    b.HasIndex("QuestionId")
+                        .HasDatabaseName("ix_question_options_question_id");
 
-                    b.ToTable("options");
+                    b.ToTable("question_options", (string)null);
                 });
 
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Question", b =>
@@ -127,8 +133,12 @@ namespace FormBuilderWithAnalytics.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamptz")
                         .HasColumnName("deleted_at");
 
                     b.Property<Guid>("FormId")
@@ -136,7 +146,9 @@ namespace FormBuilderWithAnalytics.Migrations
                         .HasColumnName("form_id");
 
                     b.Property<bool>("IsRequired")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
+                        .HasDefaultValue(true)
                         .HasColumnName("is_required");
 
                     b.Property<int>("SortOrder")
@@ -145,19 +157,69 @@ namespace FormBuilderWithAnalytics.Migrations
 
                     b.Property<string>("Text")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(2500)
+                        .HasColumnType("character varying(2500)")
                         .HasColumnName("text");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
                         .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FormId");
+                    b.HasIndex("FormId")
+                        .HasDatabaseName("ix_questions_form_id");
 
-                    b.ToTable("questions");
+                    b.ToTable("questions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_questions_type", "\"type\" IN ('short_text', 'number', 'single_choice', 'multi_choice')");
+                        });
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("expires_at");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .HasDatabaseName("ix_refresh_tokens_token_hash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_refresh_tokens_user_id");
+
+                    b.ToTable("refresh_tokens", (string)null);
                 });
 
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.User", b =>
@@ -197,8 +259,9 @@ namespace FormBuilderWithAnalytics.Migrations
                     b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.Question", "Question")
                         .WithMany("Options")
                         .HasForeignKey("QuestionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_question_options_questions_question_id");
 
                     b.Navigation("Question");
                 });
@@ -208,10 +271,23 @@ namespace FormBuilderWithAnalytics.Migrations
                     b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.Form", "Form")
                         .WithMany("Questions")
                         .HasForeignKey("FormId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_questions_forms_form_id");
 
                     b.Navigation("Form");
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.RefreshToken", b =>
+                {
+                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_refresh_tokens_users_user_id");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
