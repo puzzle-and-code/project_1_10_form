@@ -87,4 +87,63 @@ public class QuestionsController : ControllerBase
                 return Created($"/api/forms/{id}", result.Question);
         }
     }
+
+    /// <summary>
+    /// Сохраняет новый порядок вопросов своей формы.
+    /// </summary>
+    /// <remarks>
+    /// В questionIds передаются id ВСЕХ неудалённых вопросов формы в нужном
+    /// порядке. Первый вопрос получит sortOrder = 1, второй — 2 и т.д.
+    /// Список должен совпадать с набором вопросов формы: без лишних, чужих,
+    /// повторяющихся и пропущенных id.
+    ///
+    /// Пример тела:
+    ///
+    ///     {
+    ///       "questionIds": [
+    ///         "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    ///         "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+    ///       ]
+    ///     }
+    /// </remarks>
+    /// <param name="id">Id формы.</param>
+    /// <param name="dto">Id вопросов в новом порядке.</param>
+    /// <response code="200">Порядок сохранён; в ответе questions — вопросы в новом порядке с обновлёнными sortOrder.</response>
+    /// <response code="400">Список пуст, содержит повторы, пустые id, либо не совпадает с вопросами формы; порядок не изменён.</response>
+    /// <response code="401">Нет или недействителен access-токен.</response>
+    /// <response code="404">Формы нет, она удалена или принадлежит другому пользователю.</response>
+    /// <response code="409">Форма завершена (closed) — порядок менять нельзя.</response>
+    [HttpPut("reorder")]
+    [ProducesResponseType(typeof(ReorderQuestionsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Reorder(Guid id, [FromBody] ReorderQuestionsDto dto)
+    {
+        var userClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? User.FindFirstValue("sub");
+
+        if (userClaim == null || !Guid.TryParse(userClaim, out var ownerId))
+        {
+            return Unauthorized(new { message = "Не удалось определить ID пользователя из токена." });
+        }
+
+        var result = await _questionsService.ReorderQuestionsAsync(id, ownerId, dto);
+
+        switch (result.Status)
+        {
+            case ReorderQuestionsStatus.FormNotFound:
+                return NotFound(new { message = "Форма не найдена." });
+
+            case ReorderQuestionsStatus.FormClosed:
+                return Conflict(new { message = "Форма завершена, менять порядок вопросов нельзя." });
+
+            case ReorderQuestionsStatus.QuestionsMismatch:
+                return BadRequest(new { message = "Список вопросов не совпадает с вопросами формы. Обновите страницу и попробуйте снова." });
+
+            default:
+                return Ok(new ReorderQuestionsResponse { Questions = result.Questions! });
+        }
+    }
 }
