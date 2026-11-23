@@ -92,5 +92,73 @@ namespace FormBuilderWithAnalytics.src.Infrastructure.Services
                     .ToList()
             });
         }
+
+        public async Task<ReorderQuestionsResult> ReorderQuestionsAsync(Guid formId, Guid ownerId, ReorderQuestionsDto dto)
+        {
+            // Чужая, удалённая и несуществующая форма выглядят одинаково — как "не найдена".
+            var form = await _context.Forms
+                .AsNoTracking()
+                .Where(f => f.Id == formId && f.OwnerId == ownerId && f.DeletedAt == null)
+                .Select(f => new { f.Status })
+                .FirstOrDefaultAsync();
+
+            if (form == null)
+            {
+                return ReorderQuestionsResult.FormNotFound();
+            }
+
+            if (string.Equals(form.Status, FormStatuses.Closed, StringComparison.OrdinalIgnoreCase))
+            {
+                return ReorderQuestionsResult.FormClosed();
+            }
+
+            var questions = await _context.Set<Question>()
+                .Include(q => q.Options.Where(o => o.DeletedAt == null))
+                .Where(q => q.FormId == formId && q.DeletedAt == null)
+                .ToListAsync();
+
+            // Список должен содержать ровно все неудалённые вопросы этой формы:
+            // без пропусков, лишних и чужих id (дубли отсеяны ещё в DTO).
+            var requestedIds = dto.QuestionIds!;
+            var byId = questions.ToDictionary(q => q.Id);
+
+            if (requestedIds.Count != byId.Count || requestedIds.Any(id => !byId.ContainsKey(id)))
+            {
+                return ReorderQuestionsResult.QuestionsMismatch();
+            }
+
+            // Нумерация с 1, как при создании вопроса. Все изменения уходят
+            // одним SaveChanges — одной транзакцией: либо весь порядок, либо ничего.
+            var now = DateTime.UtcNow;
+            for (var i = 0; i < requestedIds.Count; i++)
+            {
+                var question = byId[requestedIds[i]];
+                var newOrder = i + 1;
+                if (question.SortOrder != newOrder)
+                {
+                    question.SortOrder = newOrder;
+                    question.UpdatedAt = now;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return ReorderQuestionsResult.Reordered(
+                requestedIds
+                    .Select(id => byId[id])
+                    .Select(q => new QuestionDto
+                    {
+                        Id = q.Id,
+                        Text = q.Text,
+                        Type = q.Type,
+                        IsRequired = q.IsRequired,
+                        SortOrder = q.SortOrder,
+                        Options = q.Options
+                            .OrderBy(o => o.SortOrder)
+                            .Select(o => new OptionDto { Id = o.Id, Text = o.Text, SortOrder = o.SortOrder })
+                            .ToList()
+                    })
+                    .ToList());
+        }
     }
 }
