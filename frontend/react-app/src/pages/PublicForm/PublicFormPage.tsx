@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useParams } from 'react-router';
 import { Alert, Button, Card, Checkbox, CheckboxGroup, Description, FieldError, Input, Label, Radio, RadioGroup, Spinner, TextArea, TextField } from '@heroui/react';
 import { publicFormsClient } from '../../api/publicForms';
 import { getPublicFormsError } from '../../api/publicFormsClient';
@@ -8,13 +8,10 @@ import { validateAnswers, type AnswerDrafts, type ResponseReceipt } from '../../
 
 export default function PublicFormPage() {
   const { id = '' } = useParams();
-  const [params] = useSearchParams();
-  const demo = params.get('demo') === '1';
-  return <ParticipantForm key={`${id}:${demo}`} id={id} demo={demo} />;
+  return <ParticipantForm key={id} id={id} />;
 }
 
-function ParticipantForm({ id, demo }: { id: string; demo: boolean }) {
-  const client = useMemo(() => publicFormsClient(demo), [demo]);
+function ParticipantForm({ id }: { id: string }) {
   const [form, setForm] = useState<FormDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +29,7 @@ function ParticipantForm({ id, demo }: { id: string; demo: boolean }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    client.getForm(id, controller.signal).then(data => {
+    publicFormsClient.getForm(id, controller.signal).then(data => {
       if (!controller.signal.aborted) setForm(data);
     }).catch(error => {
       if (!controller.signal.aborted) setLoadError(getPublicFormsError(error));
@@ -40,7 +37,7 @@ function ParticipantForm({ id, demo }: { id: string; demo: boolean }) {
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [client, id, attempt]);
+  }, [id, attempt]);
 
   function changeAnswer(questionId: string, value: string | string[]) {
     setDrafts(previous => ({ ...previous, [questionId]: value }));
@@ -61,7 +58,7 @@ function ParticipantForm({ id, demo }: { id: string; demo: boolean }) {
     setSendError(null);
     submissionId.current ||= crypto.randomUUID();
     try {
-      const saved = await client.submitResponse(id, { submissionId: submissionId.current, answers: validation.answers });
+      const saved = await publicFormsClient.submitResponse(id, { submissionId: submissionId.current, answers: validation.answers });
       setReceipt(saved);
     } catch (error) {
       setSendError(getPublicFormsError(error));

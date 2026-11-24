@@ -1,5 +1,6 @@
 import { httpClient, refreshClient } from './httpClient';
 import { tokenStore } from './tokenStore';
+import { DEV_ACCESS_TOKEN, getDevLogin } from './devAccount';
 
 export interface User {
   id?: string | number;
@@ -28,21 +29,10 @@ export interface LoginResult {
  * Бэкенд возвращает { accessToken, user } и устанавливает HttpOnly cookie с refreshToken.
  */
 export async function loginRequest(payload: LoginPayload): Promise<LoginResult> {
-  // Тестовые данные для локальной разработки, пока бэкенд не реализовал ручки
-  if (
-    import.meta.env.DEV &&
-    payload.email === 'admin@example.com' &&
-    payload.password === 'password123'
-  ) {
-    const mockToken = 'mock-dev-jwt-access-token';
-    tokenStore.set(mockToken);
-    return {
-      ok: true,
-      data: {
-        accessToken: mockToken,
-        user: { id: 'demo-admin', email: payload.email, name: 'Admin' },
-      },
-    };
+  const devSession = getDevLogin(payload, import.meta.env.DEV);
+  if (devSession) {
+    tokenStore.set(devSession.accessToken);
+    return { ok: true, data: devSession };
   }
 
   try {
@@ -94,6 +84,7 @@ export async function refreshRequest(): Promise<AuthResponse | null> {
  */
 export async function logoutRequest(): Promise<void> {
   try {
+    if (tokenStore.get() === DEV_ACCESS_TOKEN) return;
     await httpClient.post('/auth/logout', {});
   } catch {
     // Даже если запрос упал (бэк недоступен или ошибка 500),

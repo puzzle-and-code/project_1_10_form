@@ -1,5 +1,4 @@
 import { isAxiosError, type AxiosInstance } from 'axios';
-import type { createDemoFormsStore } from './demoForms.ts';
 import { FormsError } from './formsData.ts';
 import { parsePublicForm, parseResponseReceipt, type SubmitResponsePayload } from './formResponses.ts';
 
@@ -19,7 +18,7 @@ export function getPublicFormsError(error: unknown): string {
   return 'Не удалось выполнить запрос. Попробуйте ещё раз.';
 }
 
-export function createPublicFormsClient(http: AxiosInstance, demo: () => ReturnType<typeof createDemoFormsStore> | null) {
+export function createPublicFormsClient(http: AxiosInstance) {
   async function request<T>(action: () => Promise<T>): Promise<T> {
     try { return await action(); }
     catch (error) {
@@ -28,14 +27,10 @@ export function createPublicFormsClient(http: AxiosInstance, demo: () => ReturnT
   }
   return {
     getForm: (id: string, signal?: AbortSignal) => request(async () => {
-      const store = demo();
-      if (store) return store.getPublic(id);
       const { data } = await http.get<unknown>(`/public/forms/${encodeURIComponent(id)}`, { signal, timeout: 15000 });
       return parsePublicForm(data);
     }),
     submitResponse: (id: string, payload: SubmitResponsePayload) => request(async () => {
-      const store = demo();
-      if (store) return store.submitResponse(id, payload);
       const { data } = await http.post<unknown>(`/public/forms/${encodeURIComponent(id)}/responses`, payload, { timeout: 15000 });
       return parseResponseReceipt(data);
     }),

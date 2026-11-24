@@ -4,8 +4,7 @@ import {
   Alert, Button, Card, Chip, EmptyState, Input, Label, Separator,
   Spinner, Surface, TextField, ToggleButton, ToggleButtonGroup,
 } from '@heroui/react';
-import { getForms, getFormsError, isDemoFormsSession, type FormSummary } from '../../api/forms';
-import { DEMO_FORMS_KEY } from '../../api/demoForms';
+import { getForms, getFormsError, type FormSummary } from '../../api/forms';
 import { useAuth } from '../../context';
 import { mergeCreatedForms } from '../../api/formsData';
 import CreateForm from '../CreateForm';
@@ -83,15 +82,6 @@ function FormsContent() {
   function reloadForms() {
     setAttempt((value) => value + 1);
   }
-
-  useEffect(() => {
-    if (!isDemoFormsSession()) return;
-    const refresh = (event: StorageEvent) => {
-      if (event.key === DEMO_FORMS_KEY) setAttempt(value => value + 1);
-    };
-    window.addEventListener('storage', refresh);
-    return () => window.removeEventListener('storage', refresh);
-  }, []);
 
   function openCreation() {
     setNotice(null);
