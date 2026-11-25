@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import {
-  Alert, Button, Card, Chip, EmptyState, Input, Label, Separator,
+  Alert, Button, Chip, EmptyState, Input, Label, Separator,
   Spinner, Surface, TextField, ToggleButton, ToggleButtonGroup,
 } from '@heroui/react';
 import { getForms, getFormsError, isDemoFormsSession, type FormSummary } from '../../api/forms';
@@ -20,14 +20,17 @@ const statuses: Record<string, { label: string; color: 'success' | 'warning' | '
   published: { label: 'Опубликована', color: 'success' },
   draft: { label: 'Черновик', color: 'warning' },
   closed: { label: 'Закрыта', color: 'default' },
+  deleted: { label: 'Удалена', color: 'default' },
 };
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
-  day: 'numeric', month: 'short', year: 'numeric',
+  dateStyle: 'medium', timeStyle: 'short',
 });
 const normalize = (value: string) => value.trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
 
 function StatusChip({ status }: { status: string }) {
-  const display = statuses[status] ?? { label: status, color: 'default' as const };
+  const display = Object.prototype.hasOwnProperty.call(statuses, status)
+    ? statuses[status]
+    : { label: 'Неизвестный статус', color: 'default' as const };
   return <Chip color={display.color} variant="soft" size="sm"><Chip.Label>{display.label}</Chip.Label></Chip>;
 }
 
@@ -47,7 +50,6 @@ export default function FormsPage() {
 }
 
 function FormsContent() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isCreating = searchParams.get('create') === '1';
   const [attempt, setAttempt] = useState(0);
@@ -110,9 +112,14 @@ function FormsContent() {
     closeCreation();
   }
 
-  const visibleForms = forms.filter((form) => (
-    (status === 'all' || form.status === status) && normalize(form.title).includes(normalize(query))
-  ));
+  const normalizedQuery = normalize(query);
+  const visibleForms = forms
+    .filter((form) => (status === 'all' || form.status === status) && normalize(form.title).includes(normalizedQuery))
+    .sort((a, b) => {
+      if (!a.updatedAt) return b.updatedAt ? 1 : 0;
+      if (!b.updatedAt) return -1;
+      return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+    });
   function resetFilters() {
     setQuery('');
     setStatus('all');
@@ -180,30 +187,26 @@ function FormsContent() {
           <p role="status" className="text-sm text-muted">Показано: {visibleForms.length} из {forms.length}</p>
 
           {visibleForms.length > 0 ? (
-            <ul aria-label="Список форм" className="grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3">
+            <ul aria-label="Список форм" className="list-none divide-y divide-border rounded-2xl border border-border bg-surface p-0">
               {visibleForms.map((form) => (
-                <li key={form.id} className="min-w-0">
-                  <Card className="h-full" role="article" aria-labelledby={`form-${form.id}`}>
-                    <Card.Header className="gap-3">
-                      <div className="mb-1 flex items-center justify-between gap-3">
-                        <Surface variant="secondary" className="flex size-11 shrink-0 items-center justify-center rounded-xl text-accent"><FormIcon /></Surface>
-                        <StatusChip status={form.status} />
-                      </div>
-                      <Card.Title id={`form-${form.id}`} aria-level={2} className="break-words">{form.title}</Card.Title>
-                      {form.description && <Card.Description className="break-words">{form.description}</Card.Description>}
-                    </Card.Header>
-                    <Card.Content className="flex flex-1 items-end py-3">
-                      <dl>
-                        <dt className="text-sm text-muted">Ответов</dt>
-                        <dd className="text-xl font-semibold" aria-label={form.responsesCount === null ? 'Нет данных' : undefined}>{form.responsesCount ?? '—'}</dd>
-                      </dl>
-                    </Card.Content>
-                    <Separator />
-                    <Card.Footer className="flex-wrap justify-between gap-3 pt-3">
-                      <p className="text-xs text-muted">Обновлена<br />{form.updatedAt ? <time dateTime={form.updatedAt}>{dateFormatter.format(new Date(form.updatedAt))}</time> : '—'}</p>
-                      <Button size="sm" variant="secondary" aria-label={`Подробнее: ${form.title}`} onPress={() => navigate(`/forms/${encodeURIComponent(form.id)}`)}>Подробнее</Button>
-                    </Card.Footer>
-                  </Card>
+                <li key={form.id}>
+                  <Link
+                    to={`/forms/${encodeURIComponent(form.id)}`}
+                    className="grid items-center gap-x-5 gap-y-3 rounded-xl px-5 py-4 transition-colors hover:bg-surface-secondary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent sm:grid-cols-[minmax(0,1fr)_8rem_5rem_11rem]"
+                  >
+                    <h2 className="min-w-0 break-words font-semibold">{form.title}</h2>
+                    <div className="justify-self-start"><StatusChip status={form.status} /></div>
+                    <dl>
+                      <dt className="text-xs text-muted">Ответов</dt>
+                      <dd className="text-sm font-medium tabular-nums">{form.responsesCount ?? '—'}</dd>
+                    </dl>
+                    <dl>
+                      <dt className="text-xs text-muted">Изменена</dt>
+                      <dd className="text-sm">
+                        {form.updatedAt ? <time dateTime={form.updatedAt}>{dateFormatter.format(new Date(form.updatedAt))}</time> : '—'}
+                      </dd>
+                    </dl>
+                  </Link>
                 </li>
               ))}
             </ul>

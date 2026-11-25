@@ -5,6 +5,8 @@ import { useAuth } from '../context';
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
 
+  if (!isAuthenticated) return null;
+
   return (
     <header className="header">
       <div className="container header-inner">
@@ -16,25 +18,14 @@ export default function Header() {
           <Link to="/forms">Мои формы</Link>
           <Link to="/forms?create=1">Создать форму</Link>
 
-          {isAuthenticated ? (
-            <div className="flex items-center gap-3 ml-2">
-              <span className="text-sm font-medium text-default-600">
-                {user?.email}
-              </span>
-              <Button
-                size="sm"
-                variant="danger-soft"
-                onPress={() => logout()}
-              >
-                Выйти
-              </Button>
-            </div>
-          ) : (
-            <>
-              <Link to="/sign">Регистрация</Link>
-              <Link to="/login">Вход</Link>
-            </>
-          )}
+          <div className="flex items-center gap-3 ml-2">
+            <span className="text-sm font-medium text-default-600">
+              {user?.email}
+            </span>
+            <Button size="sm" variant="danger-soft" onPress={() => logout()}>
+              Выйти
+            </Button>
+          </div>
         </nav>
       </div>
     </header>
