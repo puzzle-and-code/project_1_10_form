@@ -1,11 +1,12 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { tokenStore } from './tokenStore';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import type { AuthResponse } from './auth.ts';
+import { tokenStore } from './tokenStore.ts';
 
 /**
  * Базовый URL для всех запросов к API.
  * По умолчанию '/api' (проксируется Vite в dev или Nginx в prod).
  */
-export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? '/api')
+export const API_BASE_URL = (import.meta.env?.VITE_API_URL ?? '/api')
   .trim()
   .replace(/\/+$/, '');
 
@@ -60,131 +61,80 @@ function triggerAuthFailure(): void {
   }
 }
 
-// -------------------------------------------------------------
-// Request Interceptor: подставляет Authorization: Bearer <accessToken>
-// -------------------------------------------------------------
-httpClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = tokenStore.get();
-    if (token) {
-      config.headers = config.headers ?? {};
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
-
-// -------------------------------------------------------------
-// Response Interceptor: 401 Handling + Refresh Token Queue
-// -------------------------------------------------------------
-
-interface FailedRequestQueueItem {
-  resolve: (token: string) => void;
-  reject: (error: unknown) => void;
+interface AuthRequestConfig extends InternalAxiosRequestConfig {
+  authVersion?: number;
+  retried?: boolean;
 }
 
-let isRefreshing = false;
-let failedQueue: FailedRequestQueueItem[] = [];
+let authVersion = 0;
+let changingSession = false;
+let pendingRefresh: Promise<AuthResponse> | null = null;
 
-const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach((item) => {
-    if (error) {
-      item.reject(error);
-    } else if (token) {
-      item.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
+export async function beginAuthTransition(): Promise<() => void> {
+  const version = ++authVersion;
+  changingSession = true;
+  // Дождаться установки новой cookie, чтобы следующий login или logout обработал её.
+  await pendingRefresh?.catch(() => undefined);
+  return () => {
+    if (version === authVersion) changingSession = false;
+  };
+}
 
-/**
- * Проверка, является ли URL эндпоинтом аутентификации,
- * который должен быть исключён из общей 401-логики ретраев.
- */
 export function isAuthEndpoint(url?: string): boolean {
-  if (!url) return false;
-  // Исключаем /auth/login, /api/auth/login, /auth/refresh, /api/auth/refresh, /auth/logout
-  return (
-    url.includes('/auth/login') ||
-    url.includes('/auth/refresh') ||
-    url.includes('/auth/logout') ||
-    url.includes('/auth/register')
-  );
+  const path = url?.split(/[?#]/, 1)[0].replace(/\/+$/, '') ?? '';
+  return /(?:^|\/)auth\/(?:login|refresh|logout|register)$/.test(path);
 }
 
-/**
- * Функция выполнения запроса на обновление токена.
- * Возвращает новый accessToken.
- */
-export async function performTokenRefresh(): Promise<string> {
-  const response = await refreshClient.post<{
-    accessToken: string;
-    user?: unknown;
-  }>('/auth/refresh', {});
+export function refreshAccessToken(): Promise<AuthResponse> {
+  if (changingSession) return Promise.reject(new axios.CanceledError('Сессия меняется'));
+  if (pendingRefresh) return pendingRefresh;
 
-  const newAccessToken = response.data?.accessToken;
-  if (!newAccessToken) {
-    throw new Error('Ответ refresh не содержит accessToken');
+  const version = authVersion;
+  pendingRefresh = refreshClient.post<AuthResponse>('/auth/refresh', {}, { timeout: 10000 })
+    .then(({ data }) => {
+      if (version !== authVersion) throw new axios.CanceledError('Сессия изменилась');
+      if (typeof data?.accessToken !== 'string' || !data.accessToken.trim()) {
+        throw new Error('Ответ refresh не содержит accessToken');
+      }
+      tokenStore.set(data.accessToken);
+      return data;
+    })
+    .finally(() => { pendingRefresh = null; });
+  return pendingRefresh;
+}
+
+httpClient.interceptors.request.use((config: AuthRequestConfig) => {
+  if (config.retried && config.authVersion !== authVersion) {
+    throw new axios.CanceledError('Сессия изменилась');
+  }
+  config.authVersion = authVersion;
+  const token = tokenStore.get();
+  if (token) config.headers.set('Authorization', `Bearer ${token}`);
+  return config;
+});
+
+httpClient.interceptors.response.use(undefined, async (error: AxiosError) => {
+  const request = error.config as AuthRequestConfig | undefined;
+  if (error.response?.status !== 401 || !request || isAuthEndpoint(request.url) ||
+      changingSession || request.authVersion !== authVersion || request.retried) {
+    throw error;
   }
 
-  tokenStore.set(newAccessToken);
-  return newAccessToken;
-}
-
-httpClient.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
-
-    // Если нет ответа или это не 401 — отдаём ошибку как есть
-    if (!error.response || error.response.status !== 401 || !originalRequest) {
-      return Promise.reject(error);
-    }
-
-    // Исключаем /api/auth/login и /api/auth/refresh из этой 401-логики, чтобы не было бесконечного цикла
-    if (isAuthEndpoint(originalRequest.url)) {
-      return Promise.reject(error);
-    }
-
-    // Если запрос уже повторно выполнялся после рефреша и снова 401
-    if (originalRequest._retry) {
-      triggerAuthFailure();
-      return Promise.reject(error);
-    }
-
-    // Если обновление уже выполняется другим запросом — не создаём новый, ждём в очереди
-    if (isRefreshing) {
-      return new Promise<string>((resolve, reject) => {
-        failedQueue.push({ resolve, reject });
-      })
-        .then((newToken) => {
-          originalRequest.headers = originalRequest.headers ?? {};
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          return httpClient(originalRequest);
-        })
-        .catch((err) => Promise.reject(err));
-    }
-
-    // Мы первый запрос, который поймал 401 — инициируем refresh
-    originalRequest._retry = true;
-    isRefreshing = true;
-
+  request.retried = true;
+  const token = tokenStore.get();
+  // Другой запрос мог уже обновить токен к моменту получения этого 401.
+  if (!token || request.headers.get('Authorization') === `Bearer ${token}`) {
     try {
-      const newAccessToken = await performTokenRefresh();
-      processQueue(null, newAccessToken);
-
-      // Повторяем исходный запрос с новым токеном
-      originalRequest.headers = originalRequest.headers ?? {};
-      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-      return httpClient(originalRequest);
+      await refreshAccessToken();
     } catch (refreshError) {
-      // Refresh завершился ошибкой (401 или недоступен)
-      processQueue(refreshError, null);
-      triggerAuthFailure();
-      return Promise.reject(refreshError);
-    } finally {
-      isRefreshing = false;
+      if (request.authVersion === authVersion &&
+          axios.isAxiosError(refreshError) && refreshError.response?.status === 401) {
+        ++authVersion;
+        triggerAuthFailure();
+      }
+      throw refreshError;
     }
-  },
-);
+  }
+
+  return httpClient(request);
+});
