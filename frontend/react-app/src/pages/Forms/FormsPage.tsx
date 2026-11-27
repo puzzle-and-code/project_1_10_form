@@ -9,6 +9,7 @@ import { DEMO_FORMS_KEY } from '../../api/demoForms';
 import { useAuth } from '../../context';
 import { mergeCreatedForms } from '../../api/formsData';
 import CreateForm from '../CreateForm';
+import DeleteFormDialog from './DeleteFormDialog';
 
 const filters = [
   { value: 'all', label: 'Все' },
@@ -59,7 +60,10 @@ function FormsContent() {
   const isLoading = currentResult === null;
   const [createdForms, setCreatedForms] = useState<FormSummary[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  const forms = mergeCreatedForms(currentResult?.forms ?? [], createdForms);
+  const [formToDelete, setFormToDelete] = useState<FormSummary | null>(null);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const forms = mergeCreatedForms(currentResult?.forms ?? [], createdForms)
+    .filter((form) => !deletedIds.has(form.id));
   const error = currentResult?.error ?? null;
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
@@ -108,6 +112,13 @@ function FormsContent() {
     setStatus('all');
     setNotice(`Форма «${form.title}» создана как черновик.`);
     closeCreation();
+  }
+
+  function handleDeleted(form: FormSummary) {
+    // Даже если список обновлялся во время удаления, старый ответ не вернёт карточку.
+    setDeletedIds((previous) => new Set(previous).add(form.id));
+    setNotice(`Форма «${form.title}» удалена.`);
+    setFormToDelete(null);
   }
 
   const visibleForms = forms.filter((form) => (
@@ -201,7 +212,10 @@ function FormsContent() {
                     <Separator />
                     <Card.Footer className="flex-wrap justify-between gap-3 pt-3">
                       <p className="text-xs text-muted">Обновлена<br />{form.updatedAt ? <time dateTime={form.updatedAt}>{dateFormatter.format(new Date(form.updatedAt))}</time> : '—'}</p>
-                      <Button size="sm" variant="secondary" aria-label={`Подробнее: ${form.title}`} onPress={() => navigate(`/forms/${encodeURIComponent(form.id)}`)}>Подробнее</Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="secondary" aria-label={`Подробнее: ${form.title}`} onPress={() => navigate(`/forms/${encodeURIComponent(form.id)}`)}>Подробнее</Button>
+                        <Button size="sm" variant="danger-soft" aria-label={`Удалить форму: ${form.title}`} onPress={() => setFormToDelete(form)}>Удалить</Button>
+                      </div>
                     </Card.Footer>
                   </Card>
                 </li>
@@ -219,6 +233,13 @@ function FormsContent() {
       )}
 
       {isCreating && <CreateForm onClose={closeCreation} onCreated={handleCreated} />}
+      {formToDelete && (
+        <DeleteFormDialog
+          form={formToDelete}
+          onCancel={() => setFormToDelete(null)}
+          onDeleted={() => handleDeleted(formToDelete)}
+        />
+      )}
     </section>
   );
 }

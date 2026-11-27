@@ -46,6 +46,11 @@ export function createFormsClient(http: AxiosInstance, demo: () => DemoStore | n
       const { data } = await http.get<unknown>(`/forms/${encodeURIComponent(id)}`, { timeout: 15000 });
       return parseForm(data);
     }),
+    deleteForm: (id: string) => request(async () => {
+      const store = demo();
+      if (store) return store.delete(id);
+      await http.delete(`/forms/${encodeURIComponent(id)}`, { timeout: 15000 });
+    }),
     patchForm: (id: string, payload: UpdateFormPayload) => request(async () => {
       const store = demo();
       if (store) return store.patch(id, payload);
