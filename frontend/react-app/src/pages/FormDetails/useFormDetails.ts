@@ -288,6 +288,11 @@ export function useFormDetails() {
     isCompleted,
     questionsCount,
     appendQuestion,
+    removeQuestion: (questionId: string) => setForm(previous => {
+      if (!previous) return previous;
+      const questions = (previous.questions ?? []).filter(question => question.id !== questionId);
+      return { ...previous, questions, questionsCount: questions.length };
+    }),
     replaceQuestions: (questions: QuestionDto[]) => setForm(previous => previous && { ...previous, questions, questionsCount: questions.length }),
     hideForm: () => setNotFound(true),
     hasQuestions,

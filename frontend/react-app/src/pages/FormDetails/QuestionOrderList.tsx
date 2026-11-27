@@ -13,11 +13,13 @@ interface Props {
   questions: QuestionDto[];
   isCompleted: boolean;
   isAdding: boolean;
+  deleteDisabled: boolean;
+  onDelete: (question: QuestionDto) => void;
   onReordered: (questions: QuestionDto[]) => void;
   onBusyChange: (busy: boolean) => void;
 }
 
-export function QuestionOrderList({ formId, questions, isCompleted, isAdding, onReordered, onBusyChange }: Props) {
+export function QuestionOrderList({ formId, questions, isCompleted, isAdding, deleteDisabled, onDelete, onReordered, onBusyChange }: Props) {
   const [preview, setPreview] = useState<string[] | null>(null);
   const previewRef = useRef<string[] | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -115,7 +117,7 @@ export function QuestionOrderList({ formId, questions, isCompleted, isAdding, on
           <QuestionItem key={question.id} question={question} index={index} total={questions.length}
             canDrag={!isCompleted && !isAdding && !isSaving && questions.length > 1 && (!draggedId || draggedId === question.id)}
             isDragging={draggedId === question.id} controlsDisabled={isSaving || isAdding || Boolean(draggedId)}
-            isCompleted={isCompleted} onMove={direction => move(index, direction)}
+            isCompleted={isCompleted} deleteDisabled={deleteDisabled} onDelete={() => onDelete(question)} onMove={direction => move(index, direction)}
             onDragStart={() => startDrag(question.id)} onDragEnd={finishDrag} onCancel={cancelDrag} />
         ))}
       </Reorder.Group>
@@ -123,9 +125,9 @@ export function QuestionOrderList({ formId, questions, isCompleted, isAdding, on
   );
 }
 
-function QuestionItem({ question, index, total, canDrag, isDragging, controlsDisabled, isCompleted, onMove, onDragStart, onDragEnd, onCancel }: {
+function QuestionItem({ question, index, total, canDrag, isDragging, controlsDisabled, isCompleted, deleteDisabled, onDelete, onMove, onDragStart, onDragEnd, onCancel }: {
   question: QuestionDto; index: number; total: number; canDrag: boolean; isDragging: boolean;
-  controlsDisabled: boolean; isCompleted: boolean; onMove: (direction: -1 | 1) => void;
+  controlsDisabled: boolean; isCompleted: boolean; deleteDisabled: boolean; onDelete: () => void; onMove: (direction: -1 | 1) => void;
   onDragStart: () => void; onDragEnd: (event: MouseEvent | TouchEvent | PointerEvent) => void; onCancel: () => void;
 }) {
   const dragControls = useDragControls();
@@ -169,11 +171,13 @@ function QuestionItem({ question, index, total, canDrag, isDragging, controlsDis
           <div className="flex flex-wrap items-start justify-between gap-3">
             <h3 className="min-w-0 flex-1 break-words font-semibold">{index + 1}. {question.text}</h3>
             {!isCompleted && (
-              <div className="flex gap-2" aria-label={`Порядок вопроса ${index + 1}`}>
+              <div className="flex flex-wrap gap-2" aria-label={`Действия с вопросом ${index + 1}`}>
                 <Button size="sm" variant="secondary" aria-label={`Выше: ${question.text}`}
                   isDisabled={index === 0 || controlsDisabled} onPress={() => onMove(-1)}>↑ Выше</Button>
                 <Button size="sm" variant="secondary" aria-label={`Ниже: ${question.text}`}
                   isDisabled={index === total - 1 || controlsDisabled} onPress={() => onMove(1)}>↓ Ниже</Button>
+                <Button size="sm" variant="danger-soft" aria-label={`Удалить вопрос: ${question.text}`}
+                  isDisabled={controlsDisabled || deleteDisabled} onPress={onDelete}>Удалить</Button>
               </div>
             )}
           </div>

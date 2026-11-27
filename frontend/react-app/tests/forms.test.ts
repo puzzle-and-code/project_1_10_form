@@ -107,3 +107,52 @@ test('new drafts remain visible while the server list is stale and merge without
   assert.throws(() => parseForms([{ ...created, updatedAt: 'invalid' }]), FormsError);
   assert.throws(() => parseForms([created, created]), FormsError);
 });
+
+test('soft-deleted demo questions stay hidden while collected responses remain intact', async () => {
+  const data = new Map<string, string>();
+  const http = axios.create({ adapter: async () => { throw new Error('Demo must not request the backend'); } });
+  const demo = createDemoFormsStore(storage(data));
+  const client = createFormsClient(http, () => demo);
+  const kept = demo.addQuestion('2', { ...question, isRequired: false });
+  const answered = {
+    submissionId: 'old-response',
+    answers: [{ questionId: 'demo-question-2', value: 'Сохранённый ответ' }],
+  };
+  const receipt = demo.submitResponse('2', answered);
+
+  await client.deleteQuestion('2', 'demo-question-2');
+
+  const reloaded = createDemoFormsStore(storage(data));
+  assert.deepEqual(reloaded.get('2').questions?.map(item => item.id), [kept.id]);
+  assert.deepEqual(reloaded.getPublic('2').questions?.map(item => item.id), [kept.id]);
+  assert.equal(reloaded.get('2').questionsCount, 1);
+  assert.equal(reloaded.get('2').responsesCount, 1);
+  assert.deepEqual(reloaded.submitResponse('2', answered), receipt);
+  assert.throws(() => reloaded.submitResponse('2', { ...answered, submissionId: 'new-response' }), FormsError);
+  reloaded.reorderQuestions('2', [kept.id]);
+  const stored = JSON.parse(data.get(DEMO_FORMS_KEY)!);
+  assert.ok(stored.forms.find(form => form.id === '2').questions.find(item => item.id === 'demo-question-2').deletedAt);
+  assert.deepEqual(stored.responses[0].answers, answered.answers);
+
+  await client.deleteQuestion('1', 'demo-question-1');
+  await assert.rejects(client.publishForm('1'), /хотя бы один вопрос/);
+});
+
+test('the client sends question DELETE and filters soft-deleted questions in API responses', async () => {
+  const active = { ...question, id: 'active', sortOrder: 1 };
+  const deleted = { ...question, id: 'gone', sortOrder: 0, deleted_at: '2026-11-18T10:00:00Z' };
+  const form = { id: uuid, title: 'Опрос', status: 'published', questions: [deleted, active] };
+  const http = axios.create({ adapter: async config => {
+    if (config.method === 'delete') {
+      assert.equal(config.url, '/forms/form%2Fid/questions/question%2Fid');
+      return { data: '', status: 204, statusText: '', headers: {}, config };
+    }
+    return { data: form, status: 200, statusText: '', headers: {}, config };
+  } });
+  const client = createFormsClient(http, () => null);
+
+  await client.deleteQuestion('form/id', 'question/id');
+  const details = await client.getFormById(uuid);
+  assert.deepEqual(details.questions?.map(item => item.id), ['active']);
+  assert.equal(details.questionsCount, 1);
+});

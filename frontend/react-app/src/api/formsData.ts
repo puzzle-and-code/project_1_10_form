@@ -2,7 +2,7 @@ export type FormStatus = 'draft' | 'published' | 'completed' | string;
 export type QuestionType = 'short_text' | 'number' | 'single_choice' | 'multiple_choice';
 export interface CreateQuestionPayload { text: string; type: QuestionType; isRequired: boolean; options: string[] }
 export interface QuestionDto extends Omit<CreateQuestionPayload, 'type' | 'options'> {
-  id: string; type: string; sortOrder: number;
+  id: string; type: string; sortOrder: number; deletedAt?: string;
   options: { id: string; text: string; sortOrder: number }[];
 }
 export interface FormDto {
@@ -39,9 +39,11 @@ function optionalDate(value: unknown): string | undefined {
 export function parseQuestion(value: unknown): QuestionDto {
   const item = record(value);
   if (!Array.isArray(item.options) || typeof item.isRequired !== 'boolean' || !Number.isInteger(item.sortOrder)) throw new FormsError('Не удалось прочитать вопрос.');
+  const deletedAt = optionalDate(item.deletedAt ?? item.deleted_at);
   return {
     id: identifier(item.id), text: string(item.text), type: string(item.type),
     isRequired: item.isRequired, sortOrder: item.sortOrder as number,
+    ...(deletedAt ? { deletedAt } : {}),
     options: item.options.map(value => {
       const option = record(value);
       if (!Number.isInteger(option.sortOrder)) throw new FormsError('Не удалось прочитать вариант ответа.');
@@ -49,7 +51,7 @@ export function parseQuestion(value: unknown): QuestionDto {
     }).sort((a, b) => a.sortOrder - b.sortOrder),
   };
 }
-export function parseForm(value: unknown): FormDto {
+export function parseForm(value: unknown, includeDeletedQuestions = false): FormDto {
   const item = record(value);
   const status = string(item.status).trim().toLowerCase();
   if (!status) throw new FormsError('В ответе отсутствует статус формы.');
@@ -57,7 +59,9 @@ export function parseForm(value: unknown): FormDto {
     if (item[field] != null && (!Number.isSafeInteger(item[field]) || (item[field] as number) < 0)) throw new FormsError('В ответе указан некорректный счётчик.');
   }
   if (item.questions !== undefined && !Array.isArray(item.questions)) throw new FormsError('Не удалось прочитать вопросы формы.');
-  const questions = (item.questions as unknown[] | undefined)?.map(parseQuestion).sort((a, b) => a.sortOrder - b.sortOrder);
+  const questions = (item.questions as unknown[] | undefined)?.map(parseQuestion)
+    .filter(question => includeDeletedQuestions || !question.deletedAt)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
   return {
     id: identifier(item.id), title: string(item.title).trim() || 'Без названия',
     description: item.description == null ? null : string(item.description),
@@ -68,9 +72,9 @@ export function parseForm(value: unknown): FormDto {
     publishedAt: optionalDate(item.publishedAt),
   };
 }
-export function parseForms(value: unknown): FormDto[] {
+export function parseForms(value: unknown, includeDeletedQuestions = false): FormDto[] {
   if (!Array.isArray(value)) throw new FormsError('Не удалось прочитать список форм.');
-  const forms = value.map(parseForm);
+  const forms = value.map(item => parseForm(item, includeDeletedQuestions));
   if (new Set(forms.map(form => form.id)).size !== forms.length) throw new FormsError('В списке повторяются ID форм.');
   return forms;
 }

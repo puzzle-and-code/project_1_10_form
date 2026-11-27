@@ -17,4 +17,4 @@ const client = createFormsClient(httpClient, () => {
   catch { throw new FormsError('Браузер запретил хранение форм.'); }
 });
 
-export const { getForms, createForm, getFormById, patchForm, createQuestion, publishForm, reorderQuestions } = client;
+export const { getForms, createForm, getFormById, patchForm, createQuestion, deleteQuestion, publishForm, reorderQuestions } = client;

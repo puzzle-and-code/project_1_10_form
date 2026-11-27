@@ -23,7 +23,7 @@ export function createDemoFormsStore(storage: StorageAdapter) {
     try {
       const data = JSON.parse(saved);
       if (data?.version !== 1) throw new Error('Unsupported storage version');
-      const forms = parseForms(data.forms);
+      const forms = parseForms(data.forms, true);
       // Обновляем только прежнюю стандартную подпись, не затрагивая текст пользователя.
       const teamForm = forms.find(form => form.id === '2' && form.description === 'Тестовая опубликованная форма.');
       if (teamForm) teamForm.description = 'Поделитесь мнением о работе команды.';
@@ -34,10 +34,15 @@ export function createDemoFormsStore(storage: StorageAdapter) {
     try { storage.setItem(DEMO_FORMS_KEY, JSON.stringify(data)); }
     catch { throw new FormsError('Не удалось сохранить форму. Проверьте свободное место и настройки браузера.'); }
   }
+  function visibleForm(form: FormDto) {
+    const questions = form.questions?.filter(question => !question.deletedAt);
+    return { ...form, questions, questionsCount: questions?.length ?? form.questionsCount };
+  }
+
   function get(id: string) {
     const form = read().forms.find(item => item.id === (aliases[id] ?? id));
     if (!form) throw new FormsError('Форма не найдена', 404);
-    return form;
+    return visibleForm(form);
   }
   function update(id: string, change: (form: FormDto) => FormDto) {
     const data = read();
@@ -47,10 +52,10 @@ export function createDemoFormsStore(storage: StorageAdapter) {
     const updated = change(forms[index]);
     forms[index] = { ...updated, updatedAt: new Date().toISOString() };
     write(data);
-    return forms[index];
+    return visibleForm(forms[index]);
   }
   return {
-    list: () => read().forms, get,
+    list: () => read().forms.map(visibleForm), get,
     getPublic(id: string) {
       const form = get(id);
       assertAcceptingResponses(form);
@@ -66,13 +71,15 @@ export function createDemoFormsStore(storage: StorageAdapter) {
         if (JSON.stringify(previous.answers) !== JSON.stringify(payload.answers)) throw new FormsError('Этот идентификатор отправки уже использован для другого ответа.', 409);
         return { responseId: previous.responseId, submittedAt: previous.submittedAt };
       }
-      assertAcceptingResponses(form);
-      const questionIds = new Set(form.questions!.map(question => question.id));
+      const currentForm = visibleForm(form);
+      assertAcceptingResponses(currentForm);
+      const questions = currentForm.questions ?? [];
+      const questionIds = new Set(questions.map(question => question.id));
       if (new Set(payload.answers.map(answer => answer.questionId)).size !== payload.answers.length || payload.answers.some(answer => !questionIds.has(answer.questionId))) {
         throw new FormsError('В ответе повторяются вопросы или есть неизвестный вопрос.', 422);
       }
       const drafts = Object.fromEntries(payload.answers.map(answer => [answer.questionId, typeof answer.value === 'number' ? String(answer.value) : answer.value]));
-      const result = validateAnswers(form.questions ?? [], drafts);
+      const result = validateAnswers(questions, drafts);
       if (!result.valid) throw new FormsError('Проверьте ответы. Если автор изменил вопросы, обновите страницу.', 422);
       const receipt = { responseId: crypto.randomUUID(), submittedAt: new Date().toISOString() };
       data.responses.push({ ...receipt, submissionId: payload.submissionId, formId: form.id, answers: result.answers });
@@ -81,15 +88,35 @@ export function createDemoFormsStore(storage: StorageAdapter) {
       write(data);
       return receipt;
     },
+    deleteQuestion(id: string, questionId: string) {
+      update(id, form => {
+        if (form.status === 'closed') throw new FormsError('Сбор ответов завершён.', 400);
+        const questions = form.questions ?? [];
+        if (!questions.some(question => question.id === questionId && !question.deletedAt)) {
+          throw new FormsError('Вопрос не найден.', 404);
+        }
+        const deletedAt = new Date().toISOString();
+        return {
+          ...form,
+          questions: questions.map(question => question.id === questionId ? { ...question, deletedAt } : question),
+        };
+      });
+    },
     reorderQuestions(id: string, questionIds: string[]) {
       return update(id, form => {
         if (form.status === 'closed') throw new FormsError('Сбор ответов завершён.');
         const questions = form.questions ?? [];
-        const byId = new Map(questions.map(question => [question.id, question]));
-        if (questionIds.length !== questions.length || new Set(questionIds).size !== questions.length || questionIds.some(id => !byId.has(id))) {
+        const byId = new Map(questions.filter(question => !question.deletedAt).map(question => [question.id, question]));
+        if (questionIds.length !== byId.size || new Set(questionIds).size !== byId.size || questionIds.some(id => !byId.has(id))) {
           throw new FormsError('Список вопросов изменился. Обновите страницу и попробуйте снова.', 409);
         }
-        return { ...form, questions: questionIds.map((id, sortOrder) => ({ ...byId.get(id)!, sortOrder })) };
+        return {
+          ...form,
+          questions: [
+            ...questions.filter(question => question.deletedAt),
+            ...questionIds.map((id, sortOrder) => ({ ...byId.get(id)!, sortOrder })),
+          ],
+        };
       }).questions ?? [];
     },
     create(payload: CreateFormPayload) {
@@ -118,7 +145,7 @@ export function createDemoFormsStore(storage: StorageAdapter) {
         const needsOptions = ['single_choice', 'multiple_choice'].includes(payload.type);
         if (!payload.text.trim() || (needsOptions && options.length < 2)) throw new FormsError('Заполните текст вопроса и варианты ответа.');
         const questions = form.questions ?? [];
-        created = { id: `demo-question-${crypto.randomUUID()}`, text: payload.text.trim(), type: payload.type, isRequired: payload.isRequired, sortOrder: questions.length,
+        created = { id: `demo-question-${crypto.randomUUID()}`, text: payload.text.trim(), type: payload.type, isRequired: payload.isRequired, sortOrder: questions.reduce((last, question) => Math.max(last, question.sortOrder), -1) + 1,
           options: needsOptions ? options.map((text, sortOrder) => ({ id: crypto.randomUUID(), text, sortOrder })) : [] };
         return { ...form, questions: [...questions, created], questionsCount: questions.length + 1 };
       });
@@ -127,7 +154,7 @@ export function createDemoFormsStore(storage: StorageAdapter) {
     publish(id: string) {
       return update(id, form => {
         if (form.status !== 'draft') throw new FormsError('Опубликовать можно только черновик.');
-        if (!form.questions?.length) throw new FormsError('Добавьте хотя бы один вопрос перед публикацией.');
+        if (!form.questions?.some(question => !question.deletedAt)) throw new FormsError('Добавьте хотя бы один вопрос перед публикацией.');
         return { ...form, status: 'published', publishedAt: new Date().toISOString() };
       });
     },

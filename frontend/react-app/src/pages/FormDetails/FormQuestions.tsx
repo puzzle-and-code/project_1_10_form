@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { Button, Card, FieldError, Input, Label, TextField } from '@heroui/react';
 import { createQuestion, getFormsError, type QuestionDto, type QuestionType } from '../../api/forms';
 import { FormsError } from '../../api/formsData';
+import DeleteQuestionDialog from './DeleteQuestionDialog';
 import { QuestionOrderList } from './QuestionOrderList';
 
 const typeLabels: Record<QuestionType, string> = {
@@ -15,14 +16,18 @@ interface Props {
   formId: string;
   questions: QuestionDto[];
   isCompleted: boolean;
+  isPublishing: boolean;
+  onDeleted: (questionId: string) => void;
   onCreated: (question: QuestionDto) => void;
   onReordered: (questions: QuestionDto[]) => void;
   onNotFound: () => void;
 }
 
-export function FormQuestions({ formId, questions, isCompleted, onCreated, onReordered, onNotFound }: Props) {
+export function FormQuestions({ formId, questions, isCompleted, isPublishing, onCreated, onDeleted, onReordered, onNotFound }: Props) {
   const [isAdding, setIsAdding] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
+  const [questionToDelete, setQuestionToDelete] = useState<QuestionDto | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState('');
 
   return (
     <Card className="flex flex-col gap-5 border border-default-200 bg-white p-6 shadow-sm md:p-8">
@@ -33,11 +38,14 @@ export function FormQuestions({ formId, questions, isCompleted, onCreated, onReo
         )}
       </Card.Header>
 
+      {deleteNotice && <p role="status" className="text-sm text-muted">{deleteNotice}</p>}
+
       {questions.length === 0 ? (
         <p className="text-sm text-default-500">В форме пока нет вопросов.</p>
       ) : (
         <QuestionOrderList formId={formId} questions={questions} isCompleted={isCompleted} isAdding={isAdding}
-          onReordered={onReordered} onBusyChange={setIsReordering} />
+          onReordered={onReordered} onBusyChange={setIsReordering}
+          onDelete={setQuestionToDelete} deleteDisabled={isPublishing} />
       )}
 
       {isAdding && !isCompleted && (
@@ -48,6 +56,18 @@ export function FormQuestions({ formId, questions, isCompleted, onCreated, onReo
           onCreated={(question) => {
             onCreated(question);
             setIsAdding(false);
+          }}
+        />
+      )}
+      {questionToDelete && (
+        <DeleteQuestionDialog
+          formId={formId}
+          question={questionToDelete}
+          onCancel={() => setQuestionToDelete(null)}
+          onDeleted={() => {
+            onDeleted(questionToDelete.id);
+            setQuestionToDelete(null);
+            setDeleteNotice('Вопрос удалён.');
           }}
         />
       )}

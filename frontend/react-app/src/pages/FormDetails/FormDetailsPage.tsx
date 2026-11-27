@@ -50,6 +50,7 @@ function FormDetails() {
     isCompleted,
     questionsCount,
     appendQuestion,
+    removeQuestion,
     replaceQuestions,
     hideForm,
     hasQuestions,
@@ -577,6 +578,8 @@ function FormDetails() {
         questions={form.questions ?? []}
         isCompleted={isCompleted}
         onCreated={appendQuestion}
+        onDeleted={removeQuestion}
+        isPublishing={isPublishing}
         onReordered={replaceQuestions}
         onNotFound={hideForm}
       />

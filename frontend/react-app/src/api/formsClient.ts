@@ -58,6 +58,11 @@ export function createFormsClient(http: AxiosInstance, demo: () => DemoStore | n
       const { data } = await http.post<unknown>(`/forms/${encodeURIComponent(id)}/questions`, payload, { timeout: 15000 });
       return parseQuestion(data);
     }),
+    deleteQuestion: (id: string, questionId: string) => request(async () => {
+      const store = demo();
+      if (store) return store.deleteQuestion(id, questionId);
+      await http.delete(`/forms/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}`, { timeout: 15000 });
+    }),
     reorderQuestions: (id: string, questionIds: string[]) => request(async () => {
       const store = demo();
       if (store) return store.reorderQuestions(id, questionIds);
