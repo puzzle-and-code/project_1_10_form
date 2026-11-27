@@ -12,6 +12,7 @@ import {
   logoutRequest,
   refreshRequest,
 } from '../api/auth';
+import { clearFormListChanges } from '../api/forms';
 import { registerAuthFailureHandler } from '../api/httpClient';
 import { tokenStore } from '../api/tokenStore';
 import { AuthContext, type AuthContextType } from './authContextDef';
@@ -22,6 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const clearAuthState = useCallback(() => {
+    clearFormListChanges();
     tokenStore.clear();
     setUser(null);
   }, []);
@@ -94,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     async (payload: LoginPayload): Promise<LoginResult> => {
       const result = await loginRequest(payload);
       if (result.ok && result.data) {
+        clearFormListChanges();
         const authData: AuthResponse = result.data;
         setUser(authData.user ?? { email: payload.email });
       }

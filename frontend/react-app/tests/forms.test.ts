@@ -83,6 +83,33 @@ test('real API creates by JWT ownership and uses returned UUID for the detail ro
   assert.deepEqual(calls[0].body, { title: 'Опрос курса', description: 'Ваше мнение' });
 });
 
+test('the forms list uses the saved title and PATCH timestamp when the listing is stale', async () => {
+  const older = '2026-11-18T10:00:00Z';
+  const saved = '2026-11-18T11:00:00Z';
+  const newer = '2026-11-18T12:00:00Z';
+  const form = { id: uuid, title: 'Опрос курса', description: '', status: 'published', responsesCount: 7 };
+  let listedForm = { ...form, updatedAt: older };
+  const http = axios.create({ adapter: async config => ({
+    data: config.method === 'patch'
+      ? { id: uuid, title: 'Новое название', description: '', status: 'published', updatedAt: saved }
+      : [listedForm],
+    status: 200, statusText: 'OK', headers: {}, config,
+  }) });
+  const client = createFormsClient(http, () => null);
+
+  await client.patchForm(uuid, { title: 'Новое название' });
+  const [updated] = await client.getForms();
+  assert.equal(updated.title, 'Новое название');
+  assert.equal(updated.updatedAt, saved);
+  assert.equal(updated.responsesCount, 7);
+
+  listedForm = { ...form, title: 'Следующее изменение', updatedAt: newer };
+  assert.equal((await client.getForms())[0].updatedAt, newer);
+  listedForm = { ...form, updatedAt: older };
+  client.clearFormListChanges();
+  assert.equal((await client.getForms())[0].title, form.title);
+});
+
 test('real API failures never fall back to demo data or simulated publication', async () => {
   for (const status of [401, 403, 404, 500, undefined]) {
     const http = axios.create({ adapter: async config => {

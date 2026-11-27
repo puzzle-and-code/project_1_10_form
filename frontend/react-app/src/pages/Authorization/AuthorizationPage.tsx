@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
   TextField,
   Label,
@@ -124,6 +124,9 @@ export default function AuthorizationPage() {
               )}
             </Button>
           </form>
+          <p className="mt-4 text-center text-sm text-muted">
+            Нет аккаунта? <Link to="/sign" className="underline">Зарегистрироваться</Link>
+          </p>
         </CardContent>
       </CardRoot>
     </div>
