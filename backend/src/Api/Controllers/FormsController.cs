@@ -6,11 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FormBuilderWithAnalytics.src.Api.Controllers;
 
-/// <summary>
-/// Частичное обновление своей формы. Получение формы — GET в
-/// CreationFormsController (тот же маршрут api/forms/{id}): форма
-/// отдаётся только владельцу, иначе 404.
-/// </summary>
 [ApiController]
 [Route("api/forms")]
 [Authorize]
@@ -24,17 +19,6 @@ public class FormsController : ControllerBase
         _formsService = formsService;
     }
 
-    /// <summary>
-    /// Обновляет название и/или описание своей формы.
-    /// </summary>
-    /// <remarks>
-    /// Меняются только поля, переданные в теле запроса. Чужая форма
-    /// и несуществующий id отвечают 404, как и GET.
-    /// </remarks>
-    /// <response code="200">Форма обновлена.</response>
-    /// <response code="400">Значения не прошли валидацию.</response>
-    /// <response code="401">Нет или недействителен access-токен.</response>
-    /// <response code="404">Формы нет, либо она принадлежит другому пользователю.</response>
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(FormDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -57,5 +41,42 @@ public class FormsController : ControllerBase
         }
 
         return Ok(updated);
+    }
+
+    [HttpGet("{id:guid}/public")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PublicFormDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPublic(Guid id)
+    {
+        var form = await _formsService.GetPublicFormAsync(id);
+        if (form == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(form);
+    }
+
+    [HttpPost("{id:guid}/responses")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(CreateResponseResultDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SubmitResponse(Guid id, [FromBody] List<SubmitAnswerItemDto> answers)
+    {
+        var result = await _formsService.SubmitResponseAsync(id, answers);
+
+        if (result.IsNotFound)
+        {
+            return NotFound(new { message = result.ErrorMessage });
+        }
+
+        if (result.IsBadRequest)
+        {
+            return BadRequest(new { message = result.ErrorMessage });
+        }
+
+        return CreatedAtAction(nameof(GetPublic), new { id }, result.Data);
     }
 }

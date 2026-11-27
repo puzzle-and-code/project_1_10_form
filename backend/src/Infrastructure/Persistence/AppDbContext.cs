@@ -16,6 +16,8 @@ public class AppDbContext : DbContext
     public DbSet<Question> Questions => Set<Question>();
     public DbSet<Option> QuestionOptions => Set<Option>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Response> Responses => Set<Response>();
+    public DbSet<Answer> Answers => Set<Answer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,50 +59,17 @@ public class AppDbContext : DbContext
 
             entity.HasKey(e => e.Id);
 
-            entity.Property(e => e.Id)
-                .HasColumnName("id")
-                .HasColumnType("uuid");
+            entity.Property(e => e.Id).HasColumnName("id").HasColumnType("uuid");
+            entity.Property(e => e.FormId).HasColumnName("form_id").HasColumnType("uuid").IsRequired();
+            entity.Property(e => e.Text).HasColumnName("text").HasMaxLength(2500).IsRequired();
+            entity.Property(e => e.Type).HasColumnName("type").HasMaxLength(30).IsRequired();
+            entity.Property(e => e.IsRequired).HasColumnName("is_required").HasDefaultValue(true).IsRequired();
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz").IsRequired();
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamptz");
 
-            entity.Property(e => e.FormId)
-                .HasColumnName("form_id")
-                .HasColumnType("uuid")
-                .IsRequired();
-
-            entity.Property(e => e.Text)
-                .HasColumnName("text")
-                .HasMaxLength(2500)
-                .IsRequired();
-
-            entity.Property(e => e.Type)
-                .HasColumnName("type")
-                .HasMaxLength(30)
-                .IsRequired();
-
-            entity.Property(e => e.IsRequired)
-                .HasColumnName("is_required")
-                .HasDefaultValue(true)
-                .IsRequired();
-
-            entity.Property(e => e.SortOrder)
-                .HasColumnName("sort_order")
-                .IsRequired();
-
-            entity.Property(e => e.CreatedAt)
-                .HasColumnName("created_at")
-                .HasColumnType("timestamptz")
-                .IsRequired();
-
-            entity.Property(e => e.UpdatedAt)
-                .HasColumnName("updated_at")
-                .HasColumnType("timestamptz")
-                .IsRequired();
-
-            entity.Property(e => e.DeletedAt)
-                .HasColumnName("deleted_at")
-                .HasColumnType("timestamptz");
-
-            entity.HasIndex(e => e.FormId)
-                .HasDatabaseName("ix_questions_form_id");
+            entity.HasIndex(e => e.FormId).HasDatabaseName("ix_questions_form_id");
 
             entity.HasOne(e => e.Form)
                 .WithMany(f => f.Questions)
@@ -114,35 +83,14 @@ public class AppDbContext : DbContext
             entity.ToTable("question_options");
             entity.HasKey(e => e.Id);
 
-            entity.Property(e => e.Id)
-                .HasColumnName("id")
-                .HasColumnType("uuid");
+            entity.Property(e => e.Id).HasColumnName("id").HasColumnType("uuid");
+            entity.Property(e => e.QuestionId).HasColumnName("question_id").HasColumnType("uuid").IsRequired();
+            entity.Property(e => e.Text).HasColumnName("text").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").IsRequired();
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at").HasColumnType("timestamptz");
 
-            entity.Property(e => e.QuestionId)
-                .HasColumnName("question_id")
-                .HasColumnType("uuid")
-                .IsRequired();
-
-            entity.Property(e => e.Text)
-                .HasColumnName("text")
-                .HasMaxLength(200)
-                .IsRequired();
-
-            entity.Property(e => e.SortOrder)
-                .HasColumnName("sort_order")
-                .IsRequired();
-
-            entity.Property(e => e.CreatedAt)
-                .HasColumnName("created_at")
-                .HasColumnType("timestamptz")
-                .IsRequired();
-
-            entity.Property(e => e.DeletedAt)
-                .HasColumnName("deleted_at")
-                .HasColumnType("timestamptz");
-
-            entity.HasIndex(e => e.QuestionId)
-                .HasDatabaseName("ix_question_options_question_id");
+            entity.HasIndex(e => e.QuestionId).HasDatabaseName("ix_question_options_question_id");
 
             entity.HasOne(e => e.Question)
                 .WithMany(q => q.Options)
@@ -151,32 +99,70 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<Response>(entity =>
+        {
+            entity.ToTable("responses");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id").HasColumnType("uuid");
+            entity.Property(e => e.FormId).HasColumnName("form_id").HasColumnType("uuid").IsRequired();
+            entity.Property(e => e.SubmittedAt).HasColumnName("submitted_at").HasColumnType("timestamptz").IsRequired();
+
+            entity.HasIndex(e => e.FormId).HasDatabaseName("ix_responses_form_id");
+
+            entity.HasOne(e => e.Form)
+                .WithMany(f => f.Responses)
+                .HasForeignKey(e => e.FormId)
+                .HasConstraintName("fk_responses_forms_form_id")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Answer>(entity =>
+        {
+            entity.ToTable("answers");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id").HasColumnType("uuid");
+            entity.Property(e => e.ResponseId).HasColumnName("response_id").HasColumnType("uuid").IsRequired();
+            entity.Property(e => e.QuestionId).HasColumnName("question_id").HasColumnType("uuid").IsRequired();
+            entity.Property(e => e.ValueText).HasColumnName("value_text").HasMaxLength(1500);
+            entity.Property(e => e.ValueNumber).HasColumnName("value_number").HasColumnType("integer");
+            entity.Property(e => e.OptionId).HasColumnName("option_id").HasColumnType("uuid");
+
+            entity.HasIndex(e => e.ResponseId).HasDatabaseName("ix_answers_response_id");
+            entity.HasIndex(e => e.QuestionId).HasDatabaseName("ix_answers_question_id");
+            entity.HasIndex(e => e.OptionId).HasDatabaseName("ix_answers_option_id");
+
+            entity.HasOne(e => e.Response)
+                .WithMany(r => r.Answers)
+                .HasForeignKey(e => e.ResponseId)
+                .HasConstraintName("fk_answers_responses_response_id")
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Question)
+                .WithMany()
+                .HasForeignKey(e => e.QuestionId)
+                .HasConstraintName("fk_answers_questions_question_id")
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Option)
+                .WithMany()
+                .HasForeignKey(e => e.OptionId)
+                .HasConstraintName("fk_answers_question_options_option_id")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable("users");
             entity.HasKey(e => e.id);
 
-            entity.Property(e => e.id)
-                .HasColumnType("uuid");
-
-            entity.Property(e => e.email)
-                .HasMaxLength(255)
-                .IsRequired();
-
-            entity.HasIndex(e => e.email)
-                .IsUnique();
-
-            entity.Property(e => e.password_hash)
-                .HasMaxLength(255)
-                .IsRequired();
-
-            entity.Property(e => e.display_name)
-                .HasMaxLength(100)
-                .IsRequired();
-
-            entity.Property(e => e.created_at)
-                .HasColumnType("timestamptz")
-                .IsRequired();
+            entity.Property(e => e.id).HasColumnType("uuid");
+            entity.Property(e => e.email).HasMaxLength(255).IsRequired();
+            entity.HasIndex(e => e.email).IsUnique();
+            entity.Property(e => e.password_hash).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.display_name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.created_at).HasColumnType("timestamptz").IsRequired();
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>
@@ -184,39 +170,15 @@ public class AppDbContext : DbContext
             entity.ToTable("refresh_tokens");
             entity.HasKey(e => e.Id);
 
-            entity.Property(e => e.Id)
-                .HasColumnName("id")
-                .HasColumnType("uuid");
+            entity.Property(e => e.Id).HasColumnName("id").HasColumnType("uuid");
+            entity.Property(e => e.UserId).HasColumnName("user_id").HasColumnType("uuid").IsRequired();
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash").HasMaxLength(128).IsRequired();
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamptz").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").IsRequired();
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamptz");
 
-            entity.Property(e => e.UserId)
-                .HasColumnName("user_id")
-                .HasColumnType("uuid")
-                .IsRequired();
-
-            entity.Property(e => e.TokenHash)
-                .HasColumnName("token_hash")
-                .HasMaxLength(128)
-                .IsRequired();
-
-            entity.Property(e => e.ExpiresAt)
-                .HasColumnName("expires_at")
-                .HasColumnType("timestamptz")
-                .IsRequired();
-
-            entity.Property(e => e.CreatedAt)
-                .HasColumnName("created_at")
-                .HasColumnType("timestamptz")
-                .IsRequired();
-
-            entity.Property(e => e.RevokedAt)
-                .HasColumnName("revoked_at")
-                .HasColumnType("timestamptz");
-
-            entity.HasIndex(e => e.TokenHash)
-                .HasDatabaseName("ix_refresh_tokens_token_hash");
-
-            entity.HasIndex(e => e.UserId)
-                .HasDatabaseName("ix_refresh_tokens_user_id");
+            entity.HasIndex(e => e.TokenHash).HasDatabaseName("ix_refresh_tokens_token_hash");
+            entity.HasIndex(e => e.UserId).HasDatabaseName("ix_refresh_tokens_user_id");
 
             entity.HasOne(e => e.User)
                 .WithMany()

@@ -36,6 +36,48 @@ namespace FormBuilderWithAnalytics.Migrations
                     b.ToTable("health_check_pings", (string)null);
                 });
 
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Answer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("OptionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("option_id");
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("question_id");
+
+                    b.Property<Guid>("ResponseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("response_id");
+
+                    b.Property<int?>("ValueNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("value_number");
+
+                    b.Property<string>("ValueText")
+                        .HasMaxLength(1500)
+                        .HasColumnType("character varying(1500)")
+                        .HasColumnName("value_text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OptionId")
+                        .HasDatabaseName("ix_answers_option_id");
+
+                    b.HasIndex("QuestionId")
+                        .HasDatabaseName("ix_answers_question_id");
+
+                    b.HasIndex("ResponseId")
+                        .HasDatabaseName("ix_answers_response_id");
+
+                    b.ToTable("answers", (string)null);
+                });
+
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
                 {
                     b.Property<Guid>("Id")
@@ -222,6 +264,29 @@ namespace FormBuilderWithAnalytics.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Response", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("FormId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("form_id");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("submitted_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FormId")
+                        .HasDatabaseName("ix_responses_form_id");
+
+                    b.ToTable("responses", (string)null);
+                });
+
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.User", b =>
                 {
                     b.Property<Guid>("id")
@@ -252,6 +317,35 @@ namespace FormBuilderWithAnalytics.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Answer", b =>
+                {
+                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.Option", "Option")
+                        .WithMany()
+                        .HasForeignKey("OptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_answers_question_options_option_id");
+
+                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.Question", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_answers_questions_question_id");
+
+                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.Response", "Response")
+                        .WithMany("Answers")
+                        .HasForeignKey("ResponseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_answers_responses_response_id");
+
+                    b.Navigation("Option");
+
+                    b.Navigation("Question");
+
+                    b.Navigation("Response");
                 });
 
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Option", b =>
@@ -290,14 +384,33 @@ namespace FormBuilderWithAnalytics.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Response", b =>
+                {
+                    b.HasOne("FormBuilderWithAnalytics.src.Domain.Models.Form", "Form")
+                        .WithMany("Responses")
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_responses_forms_form_id");
+
+                    b.Navigation("Form");
+                });
+
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Form", b =>
                 {
                     b.Navigation("Questions");
+
+                    b.Navigation("Responses");
                 });
 
             modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Question", b =>
                 {
                     b.Navigation("Options");
+                });
+
+            modelBuilder.Entity("FormBuilderWithAnalytics.src.Domain.Models.Response", b =>
+                {
+                    b.Navigation("Answers");
                 });
 #pragma warning restore 612, 618
         }
