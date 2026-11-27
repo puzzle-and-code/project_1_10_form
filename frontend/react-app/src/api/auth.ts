@@ -1,5 +1,6 @@
-import { httpClient, refreshClient } from './httpClient';
-import { tokenStore } from './tokenStore';
+import { demoSession } from './demoSession.ts';
+import { beginAuthTransition, refreshAccessToken, refreshClient } from './httpClient.ts';
+import { tokenStore } from './tokenStore.ts';
 
 export interface User {
   id?: string | number;
@@ -28,34 +29,24 @@ export interface LoginResult {
  * Бэкенд возвращает { accessToken, user } и устанавливает HttpOnly cookie с refreshToken.
  */
 export async function loginRequest(payload: LoginPayload): Promise<LoginResult> {
-  // Тестовые данные для локальной разработки, пока бэкенд не реализовал ручки
-  if (
-    import.meta.env.DEV &&
-    payload.email === 'admin@example.com' &&
-    payload.password === 'password123'
-  ) {
-    const mockToken = 'mock-dev-jwt-access-token';
-    tokenStore.set(mockToken);
-    return {
-      ok: true,
-      data: {
-        accessToken: mockToken,
-        user: { id: 'demo-admin', email: payload.email, name: 'Admin' },
-      },
-    };
-  }
-
+  const finish = await beginAuthTransition();
   try {
-    const response = await httpClient.post<AuthResponse>('/auth/login', payload);
-
-    if (response.data?.accessToken) {
-      tokenStore.set(response.data.accessToken);
+    if (
+      import.meta.env?.DEV &&
+      payload.email === 'admin@example.com' &&
+      payload.password === 'password123'
+    ) {
+      demoSession.remember(true);
+      return { ok: true, data: demoSession.signIn() };
     }
 
-    return {
-      ok: true,
-      data: response.data,
-    };
+    const { data } = await refreshClient.post<AuthResponse>('/auth/login', payload);
+    if (typeof data?.accessToken !== 'string' || !data.accessToken.trim()) {
+      return { ok: false, error: 'Сервер не подтвердил вход.' };
+    }
+    demoSession.remember(false);
+    tokenStore.set(data.accessToken);
+    return { ok: true, data };
   } catch (error: any) {
     const serverMessage =
       error?.response?.data?.message ||
@@ -66,6 +57,8 @@ export async function loginRequest(payload: LoginPayload): Promise<LoginResult> 
       ok: false,
       error: serverMessage || 'Не удалось войти. Проверьте соединение с сервером.',
     };
+  } finally {
+    finish();
   }
 }
 
@@ -74,31 +67,26 @@ export async function loginRequest(payload: LoginPayload): Promise<LoginResult> 
  * Браузер автоматически прикрепляет HttpOnly cookie с refreshToken благодаря withCredentials: true.
  */
 export async function refreshRequest(): Promise<AuthResponse | null> {
+  if (demoSession.restore()) return demoSession.signIn();
   try {
-    const response = await refreshClient.post<AuthResponse>('/auth/refresh', {});
-
-    if (response.data?.accessToken) {
-      tokenStore.set(response.data.accessToken);
-      return response.data;
-    }
-    return null;
+    return await refreshAccessToken();
   } catch {
-    tokenStore.clear();
     return null;
   }
 }
 
 /**
  * Завершает сессию пользователя (POST /auth/logout).
- * Независимо от ответа бэкенда токен в памяти клиента будет очищен.
  */
 export async function logoutRequest(): Promise<void> {
+  demoSession.remember(false);
+  const finish = await beginAuthTransition();
+  tokenStore.clear();
   try {
-    await httpClient.post('/auth/logout', {});
+    await refreshClient.post('/auth/logout', {}, { timeout: 10000 });
   } catch {
-    // Даже если запрос упал (бэк недоступен или ошибка 500),
-    // клиент продолжает процедуру локального логаута.
+    // Локальный выход работает и при недоступном API.
   } finally {
-    tokenStore.clear();
+    finish();
   }
 }
