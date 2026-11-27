@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { tokenStore } from './tokenStore';
+import { DEV_ACCESS_TOKEN, DevSessionError } from './devAccount';
 
 /**
  * Базовый URL для всех запросов к API.
@@ -66,7 +67,10 @@ function triggerAuthFailure(): void {
 httpClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = tokenStore.get();
-    if (token) {
+    if (token === DEV_ACCESS_TOKEN && !isAuthEndpoint(config.url)) {
+      throw new DevSessionError();
+    }
+    if (token && token !== DEV_ACCESS_TOKEN) {
       config.headers = config.headers ?? {};
       config.headers.Authorization = `Bearer ${token}`;
     }

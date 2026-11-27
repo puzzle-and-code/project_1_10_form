@@ -36,10 +36,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(data.user);
         return true;
       }
-      if (data?.accessToken) {
-        setUser({ email: 'user@example.com' });
-        return true;
-      }
       clearAuthState();
       return false;
     } catch {

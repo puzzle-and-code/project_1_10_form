@@ -1,64 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import axios, { AxiosError } from 'axios';
-import { createDemoFormsStore, DEMO_FORMS_KEY } from '../src/api/demoForms.ts';
 import { createFormsClient } from '../src/api/formsClient.ts';
 import { FormsError, mergeCreatedForms, parseForms, parseCreatedForm } from '../src/api/formsData.ts';
 
-function storage(data = new Map<string, string>()) {
-  return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } };
-}
 const payload = { title: '  Опрос курса  ', description: '  Ваше мнение  ' };
-const question = { text: 'Ваше мнение?', type: 'short_text' as const, isRequired: true, options: [] };
 const uuid = '12345678-1234-4234-8234-123456789abc';
-
-test('list, creation, details, questions and publication share persisted demo forms', async () => {
-  const data = new Map<string, string>();
-  const http = axios.create({ adapter: async () => { throw new Error('Demo must not request the backend'); } });
-  const client = createFormsClient(http, () => createDemoFormsStore(storage(data)));
-  const created = await client.createForm(payload);
-  assert.equal((await client.getForms())[0].id, created.id);
-  assert.equal((await client.getFormById(created.id)).title, 'Опрос курса');
-  await assert.rejects(client.publishForm(created.id), /хотя бы один вопрос/);
-  await client.patchForm(created.id, { title: 'Новое название', description: '' });
-  const added = await client.createQuestion(created.id, question);
-  const published = await client.publishForm(created.id);
-  assert.equal(published.status, 'published');
-  const reloaded = createFormsClient(http, () => createDemoFormsStore(storage(data)));
-  const list = await reloaded.getForms();
-  assert.equal(list.find(form => form.id === created.id)?.title, 'Новое название');
-  assert.equal(list.find(form => form.id === created.id)?.status, 'published');
-  const details = await reloaded.getFormById(created.id);
-  assert.equal(details.description, '');
-  assert.equal(details.questions?.[0].id, added.id);
-  assert.equal(details.questionsCount, 1);
-  await assert.rejects(reloaded.publishForm(created.id), /только черновик/);
-});
-
-test('demo aliases refer to the same forms and unknown IDs are not invented', () => {
-  const store = createDemoFormsStore(storage());
-  assert.equal(store.list().length, 3);
-  store.patch('demo', { title: 'Переименована' });
-  assert.equal(store.get('1').title, 'Переименована');
-  assert.equal(store.get('demo-active').id, '2');
-  assert.throws(() => store.get('missing'), error => error instanceof FormsError && error.status === 404);
-});
-
-test('invalid input, corrupt storage and rejected writes never lose an existing form', () => {
-  const data = new Map<string, string>();
-  const adapter = storage(data);
-  const store = createDemoFormsStore(adapter);
-  const created = store.create(payload);
-  const original = data.get(DEMO_FORMS_KEY);
-  assert.throws(() => store.create({ title: ' ', description: '' }), FormsError);
-  assert.throws(() => store.addQuestion(created.id, { ...question, type: 'single_choice', options: ['Один'] }), FormsError);
-  const failing = createDemoFormsStore({ ...adapter, setItem: () => { throw new Error('QuotaExceeded'); } });
-  assert.throws(() => failing.patch(created.id, { title: 'Не сохранится' }), /Не удалось сохранить/);
-  assert.equal(data.get(DEMO_FORMS_KEY), original);
-  adapter.setItem(DEMO_FORMS_KEY, '{broken');
-  assert.throws(() => store.create(payload), /данные не изменены/);
-  assert.equal(data.get(DEMO_FORMS_KEY), '{broken');
-});
 
 test('real API creates by JWT ownership and uses returned UUID for the detail route', async () => {
   const calls: { method?: string; url?: string; body: unknown; params: unknown }[] = [];
@@ -68,7 +15,7 @@ test('real API creates by JWT ownership and uses returned UUID for the detail ro
     const data = config.url === '/forms/draft' ? { formId: uuid } : config.url === '/forms' ? [form] : form;
     return { data, status: 200, statusText: 'OK', headers: {}, config };
   } });
-  const client = createFormsClient(http, () => null);
+  const client = createFormsClient(http);
   const created = await client.createForm(payload);
   assert.equal(created.id, uuid);
   const details = await client.getFormById(created.id);
@@ -83,13 +30,13 @@ test('real API creates by JWT ownership and uses returned UUID for the detail ro
   assert.deepEqual(calls[0].body, { title: 'Опрос курса', description: 'Ваше мнение' });
 });
 
-test('real API failures never fall back to demo data or simulated publication', async () => {
+test('API failures never produce forms or successful publication', async () => {
   for (const status of [401, 403, 404, 500, undefined]) {
     const http = axios.create({ adapter: async config => {
       const response = status ? { status, statusText: 'error', data: {}, headers: {}, config } : undefined;
       throw new AxiosError('Failed', 'ERR_NETWORK', config, undefined, response);
     } });
-    const client = createFormsClient(http, () => null);
+    const client = createFormsClient(http);
     await assert.rejects(client.getForms(), error => error instanceof FormsError && error.status === status);
     await assert.rejects(client.getFormById('1'), FormsError);
     await assert.rejects(client.publishForm('1'), FormsError);
@@ -106,4 +53,24 @@ test('new drafts remain visible while the server list is stale and merge without
   assert.equal(merged[0].title, 'Обновлённая');
   assert.throws(() => parseForms([{ ...created, updatedAt: 'invalid' }]), FormsError);
   assert.throws(() => parseForms([created, created]), FormsError);
+});
+
+test('choice questions use backend option objects and normalize the returned type', async () => {
+  const http = axios.create({ adapter: async config => {
+    assert.equal(config.method, 'post');
+    assert.equal(config.url, `/forms/${uuid}/questions`);
+    assert.deepEqual(JSON.parse(config.data), {
+      text: 'Выберите варианты', type: 'multi_choice', isRequired: true,
+      options: [{ text: 'Первый' }, { text: 'Второй' }],
+    });
+    return { data: {
+      id: 'q1', text: 'Выберите варианты', type: 'multi_choice', isRequired: true, sortOrder: 1,
+      options: [{ id: 'o2', text: 'Второй', sortOrder: 2 }, { id: 'o1', text: 'Первый', sortOrder: 1 }],
+    }, status: 201, statusText: 'Created', headers: {}, config };
+  } });
+  const question = await createFormsClient(http).createQuestion(uuid, {
+    text: 'Выберите варианты', type: 'multiple_choice', isRequired: true, options: [' Первый ', 'Второй'],
+  });
+  assert.equal(question.type, 'multiple_choice');
+  assert.deepEqual(question.options.map(option => option.id), ['o1', 'o2']);
 });

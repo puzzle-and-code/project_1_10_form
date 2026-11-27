@@ -1,31 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import axios, { AxiosError } from 'axios';
-import { createDemoFormsStore, DEMO_FORMS_KEY } from '../src/api/demoForms.ts';
 import { createFormsClient } from '../src/api/formsClient.ts';
 import { createPublicFormsClient } from '../src/api/publicFormsClient.ts';
 import { FormsError, type QuestionDto } from '../src/api/formsData.ts';
-import { parsePublicForm, validateAnswers } from '../src/api/formResponses.ts';
+import { parsePublicForm, parseResponseReceipt, validateAnswers } from '../src/api/formResponses.ts';
 
-function setup() {
-  const data = new Map<string, string>();
-  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } };
-  const store = createDemoFormsStore(storage);
-  const form = store.create({ title: 'Анкета', description: '' });
-  const questions = (['short_text', 'number', 'single_choice', 'multiple_choice'] as const).map(type =>
-    store.addQuestion(form.id, { text: type, type, isRequired: true, options: ['Один', 'Два'] }));
-  const optional = store.addQuestion(form.id, { text: 'Необязательный', type: 'short_text', isRequired: false, options: [] });
-  const drafts = {
-    [questions[0].id]: '  Привет  ', [questions[1].id]: '0',
-    [questions[2].id]: questions[2].options[0].id,
-    [questions[3].id]: questions[3].options.map(option => option.id), [optional.id]: '  ',
-  };
-  return { data, storage, store, form, questions, drafts };
+function answerFixture() {
+  const questions: QuestionDto[] = ['short_text', 'number', 'single_choice', 'multiple_choice'].map((type, index) => ({
+    id: 'q' + index, text: type, type, isRequired: true, sortOrder: index + 1,
+    options: type.endsWith('choice') ? [
+      { id: 'option-1', text: 'Один', sortOrder: 1 },
+      { id: 'option-2', text: 'Два', sortOrder: 2 },
+    ] : [],
+  }));
+  const all = [...questions, { id: 'optional', text: 'Необязательный', type: 'short_text', isRequired: false, sortOrder: 5, options: [] }];
+  const drafts = { q0: '  Привет  ', q1: '0', q2: 'option-1', q3: ['option-1', 'option-2'], optional: '  ' };
+  return { all, questions, drafts };
 }
 
 test('participant validates all four types, whitespace, zero, decimal comma and option IDs', () => {
-  const { store, form, questions, drafts } = setup();
-  const all = store.get(form.id).questions!;
+  const { all, questions, drafts } = answerFixture();
   assert.equal(Object.keys(validateAnswers(all, {}).errors).length, 4);
   const valid = validateAnswers(all, drafts);
   assert.equal(valid.valid, true);
@@ -41,68 +36,6 @@ test('participant validates all four types, whitespace, zero, decimal comma and 
   assert.equal(validateAnswers([{ ...questions[0], type: 'unsupported', isRequired: false }], {}).valid, false);
 });
 
-test('order persists, participant follows it, and duplicate/missing/foreign question IDs are rejected', () => {
-  const { store, storage, form } = setup();
-  const original = store.get(form.id).questions!;
-  const ids = original.map(question => question.id).reverse();
-  store.reorderQuestions(form.id, ids);
-  const reloaded = createDemoFormsStore(storage);
-  assert.deepEqual(reloaded.get(form.id).questions!.map(question => question.id), ids);
-  assert.deepEqual(reloaded.get(form.id).questions!.map(question => question.sortOrder), [0, 1, 2, 3, 4]);
-  for (const invalid of [ids.slice(1), [...ids, 'extra'], ids.map(() => ids[0]), ['other', ...ids.slice(1)]]) {
-    assert.throws(() => reloaded.reorderQuestions(form.id, invalid), error => error instanceof FormsError && error.status === 409);
-  }
-  reloaded.publish(form.id);
-  assert.deepEqual(reloaded.getPublic(form.id).questions!.map(question => question.id), ids);
-});
-
-test('anonymous demo submission persists once, updates counter, survives edits and retries', async () => {
-  const { store, storage, data, form, questions, drafts } = setup();
-  const http = axios.create({ adapter: async () => { throw new Error('Demo cannot call API'); } });
-  const client = createPublicFormsClient(http, () => createDemoFormsStore(storage));
-  await assert.rejects(client.getForm(form.id), /не опубликована/);
-  store.publish(form.id);
-  assert.equal((await client.getForm(form.id)).id, form.id);
-  await assert.rejects(client.submitResponse(form.id, { submissionId: 'empty', answers: [] }), /Проверьте ответы/);
-  const payload = { submissionId: crypto.randomUUID(), answers: validateAnswers(questions, drafts).answers };
-  const receipt = await client.submitResponse(form.id, payload);
-  assert.deepEqual(await client.submitResponse(form.id, payload), receipt);
-  await assert.rejects(client.submitResponse(form.id, { ...payload, answers: [] }), error => error instanceof FormsError && error.status === 409);
-  store.patch(form.id, { title: 'Новое название' });
-  store.reorderQuestions(form.id, store.get(form.id).questions!.map(question => question.id).reverse());
-  store.create({ title: 'Ещё форма', description: '' });
-  const persisted = JSON.parse(data.get(DEMO_FORMS_KEY)!);
-  assert.equal(persisted.responses.length, 1);
-  assert.deepEqual(persisted.responses[0].answers, payload.answers);
-  assert.equal(createDemoFormsStore(storage).list().find(item => item.id === form.id)!.responsesCount, 1);
-  await assert.rejects(client.getForm('unknown'), error => error instanceof FormsError && error.status === 404);
-});
-
-test('closed forms, storage failures and legacy storage never produce false success or lose answers', () => {
-  const { store, storage, data, form, questions, drafts } = setup();
-  store.publish(form.id);
-  const payload = { submissionId: 'submit', answers: validateAnswers(questions, drafts).answers };
-  const original = data.get(DEMO_FORMS_KEY);
-  const failing = createDemoFormsStore({ ...storage, setItem: () => { throw new Error('QuotaExceeded'); } });
-  assert.throws(() => failing.submitResponse(form.id, payload), /Не удалось сохранить/);
-  assert.throws(() => failing.reorderQuestions(form.id, store.get(form.id).questions!.map(question => question.id).reverse()), /Не удалось сохранить/);
-  assert.equal(data.get(DEMO_FORMS_KEY), original);
-  assert.equal(store.get(form.id).responsesCount, 0);
-  storage.setItem(DEMO_FORMS_KEY, JSON.stringify({ version: 1, forms: store.list() }));
-  store.submitResponse(form.id, payload); // Existing v1 envelopes did not have responses.
-  const closed = JSON.parse(data.get(DEMO_FORMS_KEY)!);
-  closed.forms.find((item: { id: string }) => item.id === form.id).status = 'closed';
-  storage.setItem(DEMO_FORMS_KEY, JSON.stringify(closed));
-  assert.throws(() => store.getPublic(form.id), error => error instanceof FormsError && error.status === 410);
-  assert.throws(() => store.submitResponse(form.id, { ...payload, submissionId: 'next' }), /завершён/);
-  assert.throws(() => store.reorderQuestions(form.id, []), /завершён/);
-  const corrupted = { ...closed, responses: [{ invalid: true }] };
-  const saved = JSON.stringify(corrupted);
-  storage.setItem(DEMO_FORMS_KEY, saved);
-  assert.throws(() => store.create({ title: 'Не потерять ответы', description: '' }), /данные не изменены/);
-  assert.equal(data.get(DEMO_FORMS_KEY), saved);
-});
-
 test('real public API uses proposed anonymous paths and preserves submission ID on retry', async () => {
   const calls: { method?: string; url?: string; body: unknown; authorization: unknown }[] = [];
   const question: QuestionDto = { id: 'q1', text: 'Ответ?', type: 'short_text', isRequired: true, sortOrder: 0, options: [] };
@@ -112,7 +45,7 @@ test('real public API uses proposed anonymous paths and preserves submission ID 
     const data = config.method === 'post' ? receipt : { id: 'f1', title: 'Форма', status: 'published', questions: [question] };
     return { data, status: 200, statusText: 'OK', headers: {}, config };
   } });
-  const client = createPublicFormsClient(http, () => null);
+  const client = createPublicFormsClient(http);
   await client.getForm('f1');
   const payload = { submissionId: 'stable-id', answers: [{ questionId: 'q1', value: 'Ответ' }] };
   assert.deepEqual(await client.submitResponse('f1', payload), receipt);
@@ -126,29 +59,82 @@ test('real public API uses proposed anonymous paths and preserves submission ID 
   assert.throws(() => parsePublicForm({ id: 'f1', title: 'Форма', status: 'draft', questions: [question] }), /не опубликована/);
 });
 
-test('real reorder and public failures are reported without demo fallback', async () => {
-  for (const status of [401, 403, 404, 409, 410, 422, 500, undefined]) {
+test('reorder and public failures are reported without inventing results', async () => {
+  for (const status of [400, 401, 403, 404, 409, 410, 422, 500, undefined]) {
     const http = axios.create({ adapter: async config => {
       throw new AxiosError('Failed', 'ERR_NETWORK', config, undefined, status ? { data: {}, status, statusText: 'Error', headers: {}, config } : undefined);
     } });
-    const publicClient = createPublicFormsClient(http, () => null);
+    const publicClient = createPublicFormsClient(http);
     await assert.rejects(publicClient.getForm('f1'), error => error instanceof FormsError && error.status === status);
     await assert.rejects(publicClient.submitResponse('f1', { submissionId: 's1', answers: [] }), FormsError);
-    await assert.rejects(createFormsClient(http, () => null).reorderQuestions('f1', ['q1']), FormsError);
+    await assert.rejects(createFormsClient(http).reorderQuestions('f1', ['q1']), FormsError);
   }
 });
 
 test('real order sends a complete list and accepts only a matching server confirmation', async () => {
-  const questions: QuestionDto[] = ['q2', 'q1'].map((id, sortOrder) => ({ id, sortOrder, text: id, type: 'short_text', isRequired: false, options: [] }));
+  const questions: QuestionDto[] = ['q2', 'q1'].map((id, index) => ({ id, sortOrder: index + 1, text: id, type: 'short_text', isRequired: false, options: [] }));
   let malformed = false;
   const http = axios.create({ adapter: async config => {
-    assert.equal(config.method, 'patch');
-    assert.equal(config.url, '/forms/f1/questions/order');
+    assert.equal(config.method, 'put');
+    assert.equal(config.url, '/forms/f1/questions/reorder');
     assert.deepEqual(JSON.parse(config.data), { questionIds: ['q2', 'q1'] });
     return { data: { questions: malformed ? [questions[0]] : [...questions].reverse() }, status: 200, statusText: 'OK', headers: {}, config };
   } });
-  const client = createFormsClient(http, () => null);
+  const client = createFormsClient(http);
   assert.deepEqual(await client.reorderQuestions('f1', ['q2', 'q1']), questions);
   malformed = true;
   await assert.rejects(client.reorderQuestions('f1', ['q2', 'q1']), /другой порядок/);
+});
+
+test('closed forms and incomplete submission receipts never become a success', () => {
+  const { questions } = answerFixture();
+  assert.throws(() => parsePublicForm({ id: 'f1', title: 'Форма', status: 'closed', questions }), error => error instanceof FormsError && error.status === 410);
+  for (const receipt of [null, {}, { responseId: 'r1' }, { responseId: 'r1', submittedAt: 'invalid' }]) {
+    assert.throws(() => parseResponseReceipt(receipt), FormsError);
+  }
+});
+
+test('a fresh client reads the confirmed question order from form details', async () => {
+  let stored: QuestionDto[] = ['q1', 'q2', 'q3'].map((id, index) => ({ id, text: id, type: 'short_text', isRequired: false, sortOrder: index + 1, options: [] }));
+  const http = axios.create({ adapter: async config => {
+    let data: unknown;
+    if (config.method === 'put') {
+      assert.equal(config.url, '/forms/f1/questions/reorder');
+      const { questionIds } = JSON.parse(config.data) as { questionIds: string[] };
+      assert.equal(questionIds.length, stored.length);
+      stored = questionIds.map((id, index) => ({ ...stored.find(question => question.id === id)!, sortOrder: index + 1 }));
+      data = { questions: stored };
+    } else {
+      assert.equal(config.method, 'get');
+      assert.equal(config.url, '/forms/f1');
+      data = { id: 'f1', title: 'Форма', status: 'draft', questions: [...stored].reverse() };
+    }
+    return { data, status: 200, statusText: 'OK', headers: {}, config };
+  } });
+  await createFormsClient(http).reorderQuestions('f1', ['q3', 'q1', 'q2']);
+  const loaded = await createFormsClient(http).getFormById('f1');
+  assert.deepEqual(loaded.questions?.map(question => question.id), ['q3', 'q1', 'q2']);
+  assert.deepEqual(loaded.questions?.map(question => question.sortOrder), [1, 2, 3]);
+});
+
+test('invalid input and inconsistent server positions cannot confirm a reorder', async () => {
+  let calls = 0;
+  const http = axios.create({ adapter: async config => {
+    calls++;
+    return { data: { questions: ['q2', 'q1'].map(id => ({ id, text: id, type: 'short_text', isRequired: true, sortOrder: 1, options: [] })) }, status: 200, statusText: 'OK', headers: {}, config };
+  } });
+  const client = createFormsClient(http);
+  for (const ids of [[], ['q1', 'q1'], ['q1', ' ']]) await assert.rejects(client.reorderQuestions('f1', ids), FormsError);
+  assert.equal(calls, 0);
+  await assert.rejects(client.reorderQuestions('f1', ['q2', 'q1']), /другой порядок/);
+});
+
+test('server validation errors are readable when saving order', async () => {
+  const http = axios.create({ adapter: async config => {
+    throw new AxiosError('Bad request', 'ERR_BAD_REQUEST', config, undefined, {
+      data: { errors: { QuestionIds: ['Список вопросов изменился. Обновите страницу.'] } },
+      status: 400, statusText: 'Bad Request', headers: {}, config,
+    });
+  } });
+  await assert.rejects(createFormsClient(http).reorderQuestions('f1', ['q1']), /Список вопросов изменился/);
 });

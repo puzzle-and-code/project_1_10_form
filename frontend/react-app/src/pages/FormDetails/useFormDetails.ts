@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { type FormDto, type QuestionDto, getFormById, patchForm, publishForm, isDemoFormsSession } from '../../api/forms';
+import { type FormDto, type QuestionDto, getFormById, patchForm, publishForm } from '../../api/forms';
 
 export interface FormValidationErrors {
   title?: string;
@@ -152,7 +152,7 @@ export function useFormDetails() {
   }, [isDraft, hasQuestions]);
 
   // Публичная ссылка
-  const publicPath = id ? `/f/${encodeURIComponent(id)}${isDemoFormsSession() ? '?demo=1' : ''}` : '';
+  const publicPath = id ? `/f/${encodeURIComponent(id)}` : '';
   const publicUrl = typeof window !== 'undefined' && id
     ? `${window.location.origin}${publicPath}`
     : publicPath;
@@ -261,7 +261,6 @@ export function useFormDetails() {
   }, []);
 
   return {
-    isDemo: isDemoFormsSession(),
     id,
     form,
     title,

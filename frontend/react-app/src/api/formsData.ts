@@ -40,7 +40,7 @@ export function parseQuestion(value: unknown): QuestionDto {
   const item = record(value);
   if (!Array.isArray(item.options) || typeof item.isRequired !== 'boolean' || !Number.isInteger(item.sortOrder)) throw new FormsError('Не удалось прочитать вопрос.');
   return {
-    id: identifier(item.id), text: string(item.text), type: string(item.type),
+    id: identifier(item.id), text: string(item.text), type: item.type === 'multi_choice' ? 'multiple_choice' : string(item.type),
     isRequired: item.isRequired, sortOrder: item.sortOrder as number,
     options: item.options.map(value => {
       const option = record(value);

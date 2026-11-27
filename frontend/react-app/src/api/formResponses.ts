@@ -5,7 +5,6 @@ export type AnswerDrafts = Record<string, string | string[]>;
 export interface FormAnswer { questionId: string; value: AnswerValue }
 export interface SubmitResponsePayload { submissionId: string; answers: FormAnswer[] }
 export interface ResponseReceipt { responseId: string; submittedAt: string }
-export interface StoredResponse extends ResponseReceipt, SubmitResponsePayload { formId: string }
 
 export function validateAnswers(questions: QuestionDto[], drafts: AnswerDrafts) {
   const errors: Record<string, string> = {};
@@ -55,19 +54,4 @@ export function parseResponseReceipt(value: unknown): ResponseReceipt {
     throw new FormsError('Сервер не подтвердил сохранение ответа. Попробуйте отправить ещё раз.');
   }
   return { responseId: data.responseId, submittedAt: data.submittedAt };
-}
-
-export function parseStoredResponses(value: unknown): StoredResponse[] {
-  if (value === undefined) return []; // Совместимость с уже сохранёнными тестовыми формами.
-  if (!Array.isArray(value)) throw new FormsError('Не удалось прочитать сохранённые ответы.');
-  return value.map(item => {
-    const receipt = parseResponseReceipt(item);
-    if (typeof item.formId !== 'string' || typeof item.submissionId !== 'string' || !Array.isArray(item.answers) ||
-        !item.answers.every((answer: FormAnswer) => answer && typeof answer.questionId === 'string' &&
-          (typeof answer.value === 'string' || (typeof answer.value === 'number' && Number.isFinite(answer.value)) ||
-            (Array.isArray(answer.value) && answer.value.every(id => typeof id === 'string'))))) {
-      throw new FormsError('Не удалось прочитать сохранённые ответы.');
-    }
-    return { ...receipt, formId: item.formId, submissionId: item.submissionId, answers: item.answers };
-  });
 }
