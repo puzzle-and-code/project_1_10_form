@@ -102,6 +102,14 @@ export function createDemoFormsStore(storage: StorageAdapter) {
       write(data);
       return form;
     },
+    delete(id: string) {
+      const data = read();
+      const form = data.forms.find(item => item.id === (aliases[id] ?? id));
+      if (!form) throw new FormsError('Форма не найдена', 404);
+      data.forms = data.forms.filter(item => item.id !== form.id);
+      data.responses = data.responses.filter(response => response.formId !== form.id);
+      write(data);
+    },
     patch(id: string, payload: UpdateFormPayload) {
       return update(id, form => {
         const title = (payload.title ?? form.title).trim();

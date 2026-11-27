@@ -107,3 +107,38 @@ test('new drafts remain visible while the server list is stale and merge without
   assert.throws(() => parseForms([{ ...created, updatedAt: 'invalid' }]), FormsError);
   assert.throws(() => parseForms([created, created]), FormsError);
 });
+
+test('deleting a demo form persists, removes its responses, and makes detail links return 404', async () => {
+  const data = new Map<string, string>();
+  const http = axios.create({ adapter: async () => { throw new Error('Demo must not request the backend'); } });
+  const client = createFormsClient(http, () => createDemoFormsStore(storage(data)));
+  const demo = createDemoFormsStore(storage(data));
+  demo.submitResponse('2', {
+    submissionId: 'delete-check',
+    answers: [{ questionId: 'demo-question-2', value: 'Ответ' }],
+  });
+
+  await client.deleteForm('demo-active');
+
+  const reloaded = createFormsClient(http, () => createDemoFormsStore(storage(data)));
+  assert.deepEqual((await reloaded.getForms()).map(form => form.id), ['1', '3']);
+  await assert.rejects(reloaded.getFormById('2'), error => error instanceof FormsError && error.status === 404);
+  assert.deepEqual(JSON.parse(data.get(DEMO_FORMS_KEY)!).responses, []);
+});
+
+test('deleting a real form sends DELETE for the encoded ID and reports server failure', async () => {
+  let failure = false;
+  const http = axios.create({ adapter: async config => {
+    assert.equal(config.method, 'delete');
+    assert.equal(config.url, '/forms/form%2Fid');
+    if (failure) {
+      throw new AxiosError('Failed', undefined, config, undefined, { config, status: 403, statusText: '', data: {}, headers: {} });
+    }
+    return { data: '', status: 204, statusText: 'No Content', headers: {}, config };
+  } });
+  const client = createFormsClient(http, () => null);
+
+  await client.deleteForm('form/id');
+  failure = true;
+  await assert.rejects(client.deleteForm('form/id'), error => error instanceof FormsError && error.status === 403);
+});
